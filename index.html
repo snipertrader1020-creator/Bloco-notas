@@ -1,367 +1,218 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Controle de Estoque</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
   <style>
-    :root{
-      --roxo:#641b6b;     /* roxo principal (baseado na sua logo) */
-      --roxo-escuro:#4a0f52;
-      --verde:#45b043;    /* verde da folha */
-      --cinza:#f6f7f9;
-      --borda:#e6e7ea;
-      --texto:#212529;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      background:var(--cinza);
-      color:var(--texto);
-      font-family: Arial, Helvetica, sans-serif;
-      -webkit-tap-highlight-color: transparent;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-color, #f4f4f4);
+      color: var(--text-color, #333);
+      transition: background 0.3s, color 0.3s;
     }
 
-    /* topo com logo */
-    header{
-      background: linear-gradient(180deg, var(--roxo), var(--roxo-escuro));
-      color:#fff;
-      padding:14px 12px 10px;
-      text-align:center;
-    }
-    header .brand{
-      display:flex; align-items:center; justify-content:center; gap:10px;
-    }
-    header img.logo{
-      height:44px; width:auto; object-fit:contain;
-      border-radius:10px;
-      background:#fff;
-      padding:4px 6px;
-    }
-    header h1{
-      margin:0;
-      font-size:20px;
-      font-weight:700;
-      letter-spacing:.3px;
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 15px;
+      background: var(--primary-color, #4b0082);
+      color: white;
     }
 
-    /* barra de controles (mobile first) */
-    #toolbar{
-      background:#fff;
-      padding:10px;
-      display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
-      border-bottom:1px solid var(--borda);
-      position:sticky; top:0; z-index:5;
-    }
-    #toolbar button, #toolbar select{
-      padding:10px 12px;
-      font-size:16px;
-      border-radius:10px;
-      border:1px solid var(--borda);
-      background:#fff;
-    }
-    #toolbar button.primary{
-      background:var(--verde);
-      color:#fff; border-color:var(--verde);
-      font-weight:600;
+    header img {
+      height: 40px;
+      width: auto;
+      border-radius: 6px;
     }
 
-    /* área do editor */
-    #editor{
-      background:#fff;
-      margin:12px;
-      border-radius:14px;
-      box-shadow: 0 6px 18px rgba(0,0,0,.06);
-      border:1px solid var(--borda);
-      overflow:hidden;
-    }
-    .linha{
-      display:flex; align-items:flex-start; gap:10px;
-      padding:12px 14px;
-      border-bottom:1px dashed #ececf0;
-    }
-    .linha:last-child{ border-bottom:none; }
-
-    /* checkbox grande para toque */
-    .linha input[type="checkbox"]{
-      width:22px; height:22px; margin-top:6px; flex:0 0 auto;
-      accent-color: var(--verde);
-    }
-    .linha[data-tipo="texto"] input[type="checkbox"]{ display:none; }
-
-    /* bloco editável: “texto liso” */
-    .bloco{
-      flex:1 1 auto;
-      min-height:28px;
-      outline:none;
-      border:none;
-      background:transparent;
-      font-size:18px;
-      line-height:1.45;
-      padding:4px 2px;
-      word-break:break-word;
-    }
-    /* feedback sutil ao focar */
-    .linha.focused{ background:#fbfbfe; }
-
-    /* dica sutil quando vazio */
-    .bloco:empty:before{
-      content: attr(data-placeholder);
-      color:#9aa0a6;
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+      flex: 1;
+      text-align: center;
     }
 
-    /* botão fantasma de deletar (só por acessibilidade; remoção real é via backspace) */
-    .apagar{
-      display:none;
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      justify-content: center;
+      background: white;
+      border-bottom: 1px solid #ddd;
     }
 
-    /* toques maiores no celular */
-    @media (max-width:480px){
-      header h1{ font-size:18px; }
-      #toolbar{ gap:6px; }
-      #toolbar select{ min-width:128px; }
+    .toolbar select, .toolbar button {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    .toolbar button {
+      background: var(--primary-color, #4b0082);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .section {
+      padding: 12px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      margin: 2px 0; /* espaço reduzido entre linhas */
+    }
+
+    .item input[type="checkbox"] {
+      margin-right: 6px;
+      transform: scale(1.2);
+    }
+
+    .editable {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: var(--font-size, 16px);
+      font-family: var(--font-family, Arial);
+      line-height: 1.3; /* altura compacta */
+    }
+
+    .editable:focus {
+      outline: none;
+      background: #f1f1f1;
     }
   </style>
-
-  <!-- Firebase (modular) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onChildAdded, onChildChanged, onChildRemoved, set, update, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-    /* ======== CONFIG FIREBASE ======== */
-    const firebaseConfig = {
-      apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
-      authDomain: "lista-de-itens-em-falta.firebaseapp.com",
-      databaseURL: "https://lista-de-itens-em-falta-default-rtdb.firebaseio.com",
-      projectId: "lista-de-itens-em-falta",
-      storageBucket: "lista-de-itens-em-falta.appspot.com",
-      messagingSenderId: "178769313308",
-      appId: "1:178769313308:web:cdb4cdc520f8eeb23729d9",
-      measurementId: "G-MTRHXEFMP8"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    /* ======== REFS ======== */
-    const sala = location.hash.replace("#","") || "default";
-    const blocosRef = ref(db, `salas/${sala}/blocos`);
-
-    /* ======== UI ELTS ======== */
-    const editor = document.getElementById('editor');
-    const fonteSel = document.getElementById('fonte');
-    const tamSel   = document.getElementById('tamanho');
-    const toggleChkBtn = document.getElementById('toggleCheck');
-
-    /* ======== STATE ======== */
-    let focoId = null; // id do bloco focado
-
-    /* ======== HELPERS ======== */
-    const novaChave = () => push(blocosRef).key;
-
-    function criarBlocoDOM(id, data){
-      const linha = document.createElement('div');
-      linha.className = 'linha';
-      linha.dataset.id = id;
-      linha.dataset.tipo = data.tipo || 'texto';
-
-      const check = document.createElement('input');
-      check.type = 'checkbox';
-      check.checked = !!data.marcado;
-
-      const bloco = document.createElement('div');
-      bloco.className = 'bloco';
-      bloco.contentEditable = "true";
-      bloco.dataset.placeholder = "Toque e escreva...";
-      bloco.innerText = (data.conteudo || "");
-      bloco.style.fontFamily = data.fonte || 'Arial';
-      bloco.style.fontSize   = data.tamanho || '18px';
-
-      // eventos
-      bloco.addEventListener('focus', () => {
-        focoId = id;
-        document.querySelectorAll('.linha').forEach(l=>l.classList.remove('focused'));
-        linha.classList.add('focused');
-        // refletir fonte/tamanho nos selects
-        fonteSel.value = (data.fonte || 'Arial');
-        tamSel.value   = (data.tamanho || '18px');
-      });
-
-      // sincroniza texto
-      bloco.addEventListener('input', () => {
-        update(ref(db, `salas/${sala}/blocos/${id}`), {
-          conteudo: bloco.innerText
-        });
-        // se for o último e ficou com algo, garante uma nova linha no final
-        ensureLinhaVaziaNoFim();
-      });
-
-      // remover via BACKSPACE quando estiver vazio
-      bloco.addEventListener('keydown', (e) => {
-        // se a linha está vazia e o usuário apertou backspace, apaga a linha
-        if(e.key === 'Backspace' && bloco.innerText.trim() === ''){
-          e.preventDefault();
-          remove(ref(db, `salas/${sala}/blocos/${id}`));
-        }
-      });
-
-      // checkbox
-      check.addEventListener('change', () => {
-        update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: check.checked });
-      });
-
-      linha.appendChild(check);
-      linha.appendChild(bloco);
-      return linha;
-    }
-
-    function renderAdd(id, data){
-      const node = criarBlocoDOM(id, data);
-      editor.appendChild(node);
-    }
-
-    function renderChange(id, data){
-      const node = editor.querySelector(`.linha[data-id="${id}"]`);
-      if(!node) return renderAdd(id, data);
-
-      node.dataset.tipo = data.tipo || 'texto';
-      const check = node.querySelector('input[type="checkbox"]');
-      const bloco = node.querySelector('.bloco');
-
-      // visibilidade do checkbox
-      if(node.dataset.tipo === 'texto'){
-        check.style.display = 'none';
-      } else {
-        check.style.display = '';
-      }
-
-      // conteúdo/estilo
-      if(document.activeElement !== bloco){
-        bloco.innerText = data.conteudo || '';
-      }
-      bloco.style.fontFamily = data.fonte || 'Arial';
-      bloco.style.fontSize   = data.tamanho || '18px';
-      check.checked = !!data.marcado;
-    }
-
-    function renderRemove(id){
-      const node = editor.querySelector(`.linha[data-id="${id}"]`);
-      if(node) node.remove();
-      // se ficou vazio, garante uma linha nova
-      ensureLinhaVaziaNoFim();
-    }
-
-    // sempre mantém UMA linha vazia no final para o usuário tocar e digitar
-    function ensureLinhaVaziaNoFim(){
-      const linhas = [...editor.querySelectorAll('.linha')];
-      const ultima = linhas[linhas.length-1];
-      if(!ultima){
-        criarLinhaBD(); // se não tem nenhuma, cria
-        return;
-      }
-      const blocoUlt = ultima.querySelector('.bloco');
-      if(blocoUlt && blocoUlt.innerText.trim() !== ''){
-        criarLinhaBD();
-      }
-    }
-
-    function criarLinhaBD(){
-      const id = novaChave();
-      const data = {
-        tipo: 'texto',         // começa como texto simples
-        conteudo: '',
-        marcado: false,
-        fonte: 'Arial',
-        tamanho: '18px',
-        ordem: Date.now()
-      };
-      set(ref(db, `salas/${sala}/blocos/${id}`), data);
-      return id;
-    }
-
-    // clicar na área em branco → foca/gera a última linha
-    editor.addEventListener('pointerdown', (e)=>{
-      if(e.target.id === 'editor'){
-        ensureLinhaVaziaNoFim();
-        const ultima = editor.querySelector('.linha:last-child .bloco');
-        if(ultima){ ultima.focus(); }
-      }
-    });
-
-    // toolbar: fonte/tamanho aplicam na linha focada
-    window.aplicarFonte = function(){
-      if(!focoId) return;
-      const fonte = fonteSel.value;
-      update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte });
-    }
-    window.aplicarTamanho = function(){
-      if(!focoId) return;
-      const tamanho = tamSel.value;
-      update(ref(db, `salas/${sala}/blocos/${focoId}`), { tamanho });
-    }
-
-    // toolbar: alternar checkbox da linha focada
-    window.toggleCheckbox = function(){
-      if(!focoId) return;
-      const node = editor.querySelector(`.linha[data-id="${focoId}"]`);
-      if(!node) return;
-      const novoTipo = (node.dataset.tipo === 'texto') ? 'caixa' : 'texto';
-      update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
-    }
-
-    /* ======== LISTENERS FIREBASE ======== */
-    onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
-    onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
-    onChildRemoved(blocosRef, (snap)=> renderRemove(snap.key));
-
-    // inicia garantindo 1 linha
-    onValue(blocosRef, (snap)=>{
-      if(!snap.exists()){
-        criarLinhaBD();
-      }
-      // oculta/mostra checkbox conforme tipo (em lote)
-      requestAnimationFrame(()=>{
-        editor.querySelectorAll('.linha').forEach(l=>{
-          const tipo = l.dataset.tipo;
-          const chk = l.querySelector('input[type="checkbox"]');
-          if(!chk) return;
-          chk.style.display = (tipo === 'texto') ? 'none' : '';
-        });
-      });
-    });
-  </script>
 </head>
 <body>
   <header>
-    <div class="brand">
-      <!-- Coloque sua imagem como 'logo.png' na mesma pasta -->
-      <img src="logo.png" alt="Açaí Delivery Pádua" class="logo" />
-      <h1>Controle de Estoque</h1>
-    </div>
+    <img src="logo.png" alt="Logo" id="logo">
+    <h1>Controle de Estoque</h1>
   </header>
 
-  <!-- Toolbar -->
-  <div id="toolbar">
-    <button id="toggleCheck" class="primary" onclick="toggleCheckbox()">Checkbox</button>
-
-    <select id="fonte" onchange="aplicarFonte()">
+  <div class="toolbar">
+    <select id="fontSelect">
       <option value="Arial">Arial</option>
       <option value="Verdana">Verdana</option>
-      <option value="Courier New">Courier</option>
-      <option value="Times New Roman">Times</option>
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Courier New">Courier New</option>
     </select>
 
-    <select id="tamanho" onchange="aplicarTamanho()">
+    <select id="sizeSelect">
       <option value="14px">14px</option>
-      <option value="16px">16px</option>
-      <option value="18px" selected>18px</option>
-      <option value="22px">22px</option>
-      <option value="24px">24px</option>
-      <option value="28px">28px</option>
-      <option value="32px">32px</option>
+      <option value="16px" selected>16px</option>
+      <option value="18px">18px</option>
+      <option value="20px">20px</option>
     </select>
+
+    <button onclick="toggleTheme()">Mudar Cor</button>
   </div>
 
-  <!-- Editor livre -->
-  <div id="editor" aria-label="Área de edição – toque para digitar"></div>
+  <div class="section">
+    <h2>Recheios</h2>
+    <div id="itemList"></div>
+  </div>
+
+  <script type="module">
+    // 🔹 Configuração Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getDatabase, ref, set, onValue, push, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "SUA_API_KEY",
+      authDomain: "SUA_AUTH_DOMAIN",
+      databaseURL: "SUA_DB_URL",
+      projectId: "SUA_PROJECT_ID",
+      storageBucket: "SUA_STORAGE",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const itemRef = ref(db, "itens");
+
+    const itemList = document.getElementById("itemList");
+    const fontSelect = document.getElementById("fontSelect");
+    const sizeSelect = document.getElementById("sizeSelect");
+
+    // 🔹 Renderiza os itens da lista
+    onValue(itemRef, (snapshot) => {
+      itemList.innerHTML = "";
+      snapshot.forEach((childSnapshot) => {
+        const item = childSnapshot.val();
+        const itemKey = childSnapshot.key;
+
+        const div = document.createElement("div");
+        div.className = "item";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = item.checked || false;
+        checkbox.onchange = () => {
+          set(ref(db, "itens/" + itemKey), {
+            text: item.text,
+            checked: checkbox.checked
+          });
+        };
+
+        const span = document.createElement("div");
+        span.className = "editable";
+        span.contentEditable = "true";
+        span.textContent = item.text;
+        span.style.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-family");
+        span.style.fontSize = getComputedStyle(document.documentElement).getPropertyValue("--font-size");
+
+        // Atualiza texto em tempo real
+        span.oninput = () => {
+          set(ref(db, "itens/" + itemKey), {
+            text: span.textContent,
+            checked: checkbox.checked
+          });
+        };
+
+        div.appendChild(checkbox);
+        div.appendChild(span);
+        itemList.appendChild(div);
+      });
+    });
+
+    // 🔹 Controle de fontes
+    fontSelect.onchange = () => {
+      document.documentElement.style.setProperty("--font-family", fontSelect.value);
+    };
+    sizeSelect.onchange = () => {
+      document.documentElement.style.setProperty("--font-size", sizeSelect.value);
+    };
+
+    // 🔹 Alternador de cores
+    let themeIndex = 0;
+    const themes = [
+      { "--primary-color": "#4b0082", "--bg-color": "#f4f4f4", "--text-color": "#333" }, // Roxo
+      { "--primary-color": "#228B22", "--bg-color": "#e9fbe9", "--text-color": "#111" }, // Verde
+      { "--primary-color": "#333", "--bg-color": "#fff", "--text-color": "#000" }        // Branco
+    ];
+
+    function toggleTheme() {
+      themeIndex = (themeIndex + 1) % themes.length;
+      const theme = themes[themeIndex];
+      for (const key in theme) {
+        document.documentElement.style.setProperty(key, theme[key]);
+      }
+    }
+    window.toggleTheme = toggleTheme;
+  </script>
 </body>
 </html>
