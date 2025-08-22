@@ -1,122 +1,187 @@
-// src/App.js
-import React, { useState, useEffect } from "react";
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, push, onValue, update } from "firebase/database";
+<!DOCTYPE html><html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bloco de Notas em Tempo Real</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#121a33; --accent:#6ee7b7; --muted:#9aa4bf; --text:#e6ecff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sans-serif}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #1c2447;background:linear-gradient(180deg,#0e1430,#0a1026)}
+    header .left{display:flex;gap:10px;align-items:center}
+    .app-title{font-weight:700;font-size:18px}
+    .room{font-size:12px;color:var(--muted)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    select, input[type="number"], input[type="text"], button{background:#0f1630;color:var(--text);border:1px solid #22306a;border-radius:10px;padding:8px 10px;outline:none}
+    button{cursor:pointer}
+    button.primary{background:var(--accent);color:#05110d;border:none;font-weight:700}
+    main{display:grid;grid-template-columns:1fr;gap:16px;padding:16px;max-width:900px;margin:0 auto}
+    .card{background:var(--panel);border:1px solid #1b2450;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card h3{margin:0;padding:14px 16px;border-bottom:1px solid #1c2447;opacity:.9}
+    .card .body{padding:14px}#editor{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:10px;background:#0f1838;border:1px solid #26336b;border-radius:12px;padding:10px}
+.item input[type="text"]{flex:1;border:none;background:transparent;color:var(--text);outline:none;font-size:inherit}
+.item .remove{border:none;background:#1b2450;color:#b6c0e8;border-radius:10px;padding:6px 10px}
+.empty{color:var(--muted);font-size:14px}
+.footer{padding:10px 16px;color:var(--muted);font-size:12px}
 
-// Configuração Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
-  authDomain: "lista-de-itens-em-falta.firebaseapp.com",
-  databaseURL: "https://lista-de-itens-em-falta-default-rtdb.firebaseio.com",
-  projectId: "lista-de-itens-em-falta",
-  storageBucket: "lista-de-itens-em-falta.firebasestorage.app",
-  messagingSenderId: "178769313308",
-  appId: "1:178769313308:web:cdb4cdc520f8eeb23729d9",
-  measurementId: "G-MTRHXEFMP8"
-};
-
-// Inicializa Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-export default function App() {
-  const [items, setItems] = useState([]);
-  const [text, setText] = useState("");
-  const [isCheckbox, setIsCheckbox] = useState(false);
-  const [fontSize, setFontSize] = useState(18);
-
-  // Carregar lista do Firebase
-  useEffect(() => {
-    const itemsRef = ref(db, "lista");
-    onValue(itemsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setItems(Object.values(data));
-      } else {
-        setItems([]);
-      }
-    });
-  }, []);
-
-  // Adicionar item
-  const addItem = () => {
-    if (!text.trim()) return;
-    const newItem = {
-      id: Date.now(),
-      text,
-      isCheckbox,
-      checked: false,
-      fontSize,
-    };
-    const newRef = push(ref(db, "lista"));
-    set(newRef, newItem);
-    setText("");
-  };
-
-  // Alternar check
-  const toggleCheck = (itemId, checked) => {
-    const itemRef = ref(db, "lista/" + itemId);
-    update(itemRef, { checked: !checked });
-  };
-
-  return (
-    <div style={{ padding: 20, background: "#f9f9f9", minHeight: "100vh" }}>
-      <h2>📝 Lista de Compras</h2>
-
-      {/* Entrada de texto */}
-      <input
-        type="text"
-        placeholder="Digite um item ou descrição..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        style={{ padding: 8, width: "80%", fontSize: 16 }}
-      />
-      <button onClick={addItem} style={{ marginLeft: 10, padding: 8 }}>
-        Adicionar
-      </button>
-
-      {/* Opção normal/checkbox */}
-      <div style={{ marginTop: 10 }}>
-        <label>
-          <input
-            type="checkbox"
-            checked={isCheckbox}
-            onChange={(e) => setIsCheckbox(e.target.checked)}
-          />{" "}
-          Criar com caixinha
-        </label>
-      </div>
-
-      {/* Controle de fonte */}
-      <div style={{ marginTop: 10 }}>
-        <label>Tamanho da fonte: </label>
-        <input
-          type="number"
-          value={fontSize}
-          onChange={(e) => setFontSize(Number(e.target.value))}
-          style={{ width: 60 }}
-        />
-      </div>
-
-      {/* Lista de itens */}
-      <ul style={{ marginTop: 20, listStyle: "none", padding: 0 }}>
-        {items.map((item) => (
-          <li key={item.id} style={{ fontSize: item.fontSize, marginBottom: 8 }}>
-            {item.isCheckbox ? (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={item.checked}
-                  onChange={() => toggleCheck(item.id, item.checked)}
-                />{" "}
-                {item.text}
-              </label>
-            ) : (
-              <span>{item.text}</span>
-            )}
-          </li>
-        ))}
-      </ul>
+  </style>
+</head>
+<body>
+  <header>
+    <div class="left">
+      <div class="app-title">📝 Bloco de Notas</div>
+      <div id="roomInfo" class="room"></div>
     </div>
-  );
-}
+    <div class="toolbar">
+      <label>Fonte
+        <select id="fontSelector">
+          <option>Inter</option>
+          <option>Arial</option>
+          <option>Verdana</option>
+          <option>Times New Roman</option>
+          <option>Courier New</option>
+        </select>
+      </label>
+      <label>Tamanho
+        <input id="fontSize" type="number" min="10" max="48" value="18" />
+      </label>
+      <button id="addText" class="primary">+ Texto</button>
+      <button id="addCheck" class="primary">+ Caixinha</button>
+      <button id="shareBtn">Copiar link</button>
+    </div>
+  </header>  <main>
+    <section class="card">
+      <h3>Conteúdo</h3>
+      <div class="body">
+        <div id="editor"></div>
+        <div id="empty" class="empty">Nenhum item ainda. Use "+ Texto" ou "+ Caixinha".</div>
+      </div>
+    </section>
+  </main>  <div class="footer">Compartilhe o link desta página para editar a <b>mesma sala</b> em tempo real em outro celular/computador.</div>  <script type="module">
+    // ===== Firebase (Realtime Database) =====
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getDatabase, ref, onValue, update, set, push, child } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
+      authDomain: "lista-de-itens-em-falta.firebaseapp.com",
+      databaseURL: "https://lista-de-itens-em-falta-default-rtdb.firebaseio.com",
+      projectId: "lista-de-itens-em-falta",
+      storageBucket: "lista-de-itens-em-falta.firebasestorage.app",
+      messagingSenderId: "178769313308",
+      appId: "1:178769313308:web:cdb4cdc520f8eeb23729d9",
+      measurementId: "G-MTRHXEFMP8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    // Sala via hash da URL (#minha-sala)
+    function getRoomId(){
+      let id = location.hash.replace('#','').trim();
+      if(!id){ id = Math.random().toString(36).slice(2,8); location.hash = id; }
+      return id;
+    }
+    const roomId = getRoomId();
+    const roomRef = ref(db, `rooms/${roomId}`);
+    document.getElementById('roomInfo').textContent = `Sala: ${roomId}`;
+
+    // UI Elements
+    const fontSel = document.getElementById('fontSelector');
+    const fontSize = document.getElementById('fontSize');
+    const editor = document.getElementById('editor');
+    const emptyEl = document.getElementById('empty');
+
+    // Auth anônima (melhor p/ regras seguras)
+    await signInAnonymously(auth).catch(console.error);
+    onAuthStateChanged(auth, (user)=>{ if(user) init(); });
+
+    function setEmpty(show){ emptyEl.style.display = show ? 'block' : 'none'; }
+
+    function render(items){
+      editor.innerHTML = '';
+      const ids = Object.keys(items||{});
+      if(!ids.length){ setEmpty(true); return; }
+      setEmpty(false);
+      ids.sort((a,b)=> (items[a].order||0) - (items[b].order||0));
+      for(const id of ids){
+        const it = items[id];
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.style.fontFamily = fontSel.value;
+        row.style.fontSize = fontSize.value + 'px';
+
+        if(it.type === 'check'){
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = !!it.checked;
+          cb.addEventListener('change', ()=> update(child(roomRef, `items/${id}`), { checked: cb.checked }));
+          const txt = document.createElement('input');
+          txt.type = 'text';
+          txt.value = it.text||'';
+          txt.addEventListener('input', ()=> update(child(roomRef, `items/${id}`), { text: txt.value }));
+          const rm = document.createElement('button');
+          rm.className = 'remove';
+          rm.textContent = 'Remover';
+          rm.addEventListener('click', ()=> update(child(roomRef, `items`), { [id]: null }));
+          row.append(cb, txt, rm);
+        } else { // text
+          const txt = document.createElement('input');
+          txt.type = 'text';
+          txt.value = it.text||'';
+          txt.addEventListener('input', ()=> update(child(roomRef, `items/${id}`), { text: txt.value }));
+          const rm = document.createElement('button');
+          rm.className = 'remove';
+          rm.textContent = 'Remover';
+          rm.addEventListener('click', ()=> update(child(roomRef, `items`), { [id]: null }));
+          row.append(txt, rm);
+        }
+        editor.appendChild(row);
+      }
+    }
+
+    function init(){
+      // Sync em tempo real
+      onValue(roomRef, (snap)=>{
+        const data = snap.val() || {};
+        // fonte/tamanho
+        if(data.font){ fontSel.value = data.font; }
+        if(data.size){ fontSize.value = data.size; }
+        // re-render com estilos atuais
+        render(data.items||{});
+      });
+
+      // Controles de fonte/tamanho (aplica e salva globalmente)
+      fontSel.addEventListener('change', ()=>{
+        update(roomRef, { font: fontSel.value });
+        Array.from(editor.children).forEach(el=> el.style.fontFamily = fontSel.value);
+      });
+      fontSize.addEventListener('change', ()=>{
+        update(roomRef, { size: Number(fontSize.value) });
+        Array.from(editor.children).forEach(el=> el.style.fontSize = fontSize.value + 'px');
+      });
+
+      // Adicionar itens
+      document.getElementById('addText').addEventListener('click', ()=> addItem('text'));
+      document.getElementById('addCheck').addEventListener('click', ()=> addItem('check'));
+
+      // Compartilhar link
+      document.getElementById('shareBtn').addEventListener('click', async ()=>{
+        const url = location.href;
+        try{ await navigator.clipboard.writeText(url); alert('Link copiado!'); }
+        catch{ prompt('Copie o link:', url); }
+      });
+    }
+
+    function addItem(type){
+      const id = push(child(roomRef, 'items')).key;
+      const data = { type, text: type==='text' ? 'Novo texto' : 'Novo item', checked:false, order: Date.now() };
+      update(child(roomRef, 'items'), { [id]: data });
+    }
+  </script></body>
+</html>
