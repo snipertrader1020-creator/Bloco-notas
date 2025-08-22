@@ -104,7 +104,6 @@ header h1{
   #toolbar button, #toolbar select{ font-size:14px; padding:6px 8px; }
 }
 </style>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, onChildAdded, onChildChanged, onChildRemoved, set, update, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -124,13 +123,10 @@ const db = getDatabase(app);
 
 const sala = location.hash.replace("#","") || "default";
 const blocosRef = ref(db, `salas/${sala}/blocos`);
-
 const editor = document.getElementById('editor');
 const fonteSel = document.getElementById('fonte');
 const tamSel   = document.getElementById('tamanho');
-
 let focoId = null;
-
 const novaChave = () => push(blocosRef).key;
 
 function criarBlocoDOM(id, data){
@@ -222,14 +218,12 @@ editor.addEventListener('pointerdown', (e)=>{
   }
 });
 
-// **NOVO**: Detectar colagem de múltiplas linhas
+// **COLAGEM DE MÚLTIPLAS LINHAS**
 editor.addEventListener('paste', (e)=>{
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
   const linhas = text.split(/\r?\n/).filter(l=>l.trim()!=='');
-  linhas.forEach(l=>{
-    criarLinhaBD(l, 'caixa'); // cada linha já vira checkbox
-  });
+  linhas.forEach(l=> criarLinhaBD(l, 'caixa'));
 });
 
 // toolbar
@@ -242,8 +236,6 @@ window.toggleCheckbox = function(){
   const novoTipo = (node.dataset.tipo === 'texto') ? 'caixa' : 'texto';
   update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
 }
-
-// botão fundo funcional
 window.toggleFundo = function(){
   const fundos = ['#fff','#f6f7f9','#e8dff5'];
   const atual = window.getComputedStyle(editor).backgroundColor;
@@ -258,7 +250,6 @@ window.toggleFundo = function(){
 onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
 onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
 onChildRemoved(blocosRef, (snap)=> renderRemove(snap.key));
-
 onValue(blocosRef, (snap)=>{
   if(!snap.exists()) criarLinhaBD();
   requestAnimationFrame(()=>{
@@ -274,4 +265,30 @@ onValue(blocosRef, (snap)=>{
 </head>
 <body>
 <header>
-  <div class
+  <div class="brand">
+    <img src="logo.png" alt="Açaí Delivery Pádua" class="logo" />
+    <h1>Controle de Estoque</h1>
+  </div>
+</header>
+<div id="toolbar">
+  <button id="toggleCheck" class="primary" onclick="toggleCheckbox()">Checkbox</button>
+  <button onclick="toggleFundo()">Fundo</button>
+  <select id="fonte" onchange="aplicarFonte()">
+    <option value="Arial">Arial</option>
+    <option value="Verdana">Verdana</option>
+    <option value="Courier New">Courier</option>
+    <option value="Times New Roman">Times</option>
+  </select>
+  <select id="tamanho" onchange="aplicarTamanho()">
+    <option value="14px">14px</option>
+    <option value="16px">16px</option>
+    <option value="18px" selected>18px</option>
+    <option value="22px">22px</option>
+    <option value="24px">24px</option>
+    <option value="28px">28px</option>
+    <option value="32px">32px</option>
+  </select>
+</div>
+<div id="editor" aria-label="Área de edição – toque para digitar"></div>
+</body>
+</html>
