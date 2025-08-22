@@ -1,90 +1,134 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Controle de Estoque</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f8f9fa;
-      color: #333;
+    :root{
+      --roxo:#641b6b;     /* roxo principal (baseado na sua logo) */
+      --roxo-escuro:#4a0f52;
+      --verde:#45b043;    /* verde da folha */
+      --cinza:#f6f7f9;
+      --borda:#e6e7ea;
+      --texto:#212529;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--cinza);
+      color:var(--texto);
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    header {
-      background: #4B0055; /* Roxo da logo */
-      color: white;
-      text-align: center;
-      padding: 15px;
+    /* topo com logo */
+    header{
+      background: linear-gradient(180deg, var(--roxo), var(--roxo-escuro));
+      color:#fff;
+      padding:14px 12px 10px;
+      text-align:center;
+    }
+    header .brand{
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    header img.logo{
+      height:44px; width:auto; object-fit:contain;
+      border-radius:10px;
+      background:#fff;
+      padding:4px 6px;
+    }
+    header h1{
+      margin:0;
+      font-size:20px;
+      font-weight:700;
+      letter-spacing:.3px;
     }
 
-    header img {
-      max-height: 60px;
-      display: block;
-      margin: 0 auto 10px;
+    /* barra de controles (mobile first) */
+    #toolbar{
+      background:#fff;
+      padding:10px;
+      display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+      border-bottom:1px solid var(--borda);
+      position:sticky; top:0; z-index:5;
+    }
+    #toolbar button, #toolbar select{
+      padding:10px 12px;
+      font-size:16px;
+      border-radius:10px;
+      border:1px solid var(--borda);
+      background:#fff;
+    }
+    #toolbar button.primary{
+      background:var(--verde);
+      color:#fff; border-color:var(--verde);
+      font-weight:600;
     }
 
-    #controls {
-      background: #eee;
-      padding: 10px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
+    /* área do editor */
+    #editor{
+      background:#fff;
+      margin:12px;
+      border-radius:14px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+      border:1px solid var(--borda);
+      overflow:hidden;
+    }
+    .linha{
+      display:flex; align-items:flex-start; gap:10px;
+      padding:12px 14px;
+      border-bottom:1px dashed #ececf0;
+    }
+    .linha:last-child{ border-bottom:none; }
+
+    /* checkbox grande para toque */
+    .linha input[type="checkbox"]{
+      width:22px; height:22px; margin-top:6px; flex:0 0 auto;
+      accent-color: var(--verde);
+    }
+    .linha[data-tipo="texto"] input[type="checkbox"]{ display:none; }
+
+    /* bloco editável: “texto liso” */
+    .bloco{
+      flex:1 1 auto;
+      min-height:28px;
+      outline:none;
+      border:none;
+      background:transparent;
+      font-size:18px;
+      line-height:1.45;
+      padding:4px 2px;
+      word-break:break-word;
+    }
+    /* feedback sutil ao focar */
+    .linha.focused{ background:#fbfbfe; }
+
+    /* dica sutil quando vazio */
+    .bloco:empty:before{
+      content: attr(data-placeholder);
+      color:#9aa0a6;
     }
 
-    button, select {
-      padding: 10px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
+    /* botão fantasma de deletar (só por acessibilidade; remoção real é via backspace) */
+    .apagar{
+      display:none;
     }
 
-    button {
-      background: #7B1FA2; /* Roxo mais claro */
-      color: white;
-    }
-
-    #notas {
-      padding: 15px;
-      background: white;
-      min-height: 200px;
-    }
-
-    .linha {
-      margin: 8px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .linha input[type="text"] {
-      flex: 1;
-      padding: 4px;
-      border: none;
-      border-bottom: 1px dashed transparent;
-      outline: none;
-      background: transparent;
-    }
-
-    .linha input[type="text"]:focus {
-      border-bottom: 1px dashed #aaa;
-    }
-
-    .lixeira {
-      cursor: pointer;
-      color: red;
-      font-weight: bold;
-      font-size: 18px;
+    /* toques maiores no celular */
+    @media (max-width:480px){
+      header h1{ font-size:18px; }
+      #toolbar{ gap:6px; }
+      #toolbar select{ min-width:128px; }
     }
   </style>
 
+  <!-- Firebase (modular) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onChildAdded, onChildChanged, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, onChildAdded, onChildChanged, onChildRemoved, set, update, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+    /* ======== CONFIG FIREBASE ======== */
     const firebaseConfig = {
       apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
       authDomain: "lista-de-itens-em-falta.firebaseapp.com",
@@ -95,149 +139,229 @@
       appId: "1:178769313308:web:cdb4cdc520f8eeb23729d9",
       measurementId: "G-MTRHXEFMP8"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const sala = location.hash.replace("#", "") || "default";
-    const notasRef = ref(db, "salas/" + sala + "/notas");
+    /* ======== REFS ======== */
+    const sala = location.hash.replace("#","") || "default";
+    const blocosRef = ref(db, `salas/${sala}/blocos`);
 
-    const container = document.getElementById("notas");
+    /* ======== UI ELTS ======== */
+    const editor = document.getElementById('editor');
+    const fonteSel = document.getElementById('fonte');
+    const tamSel   = document.getElementById('tamanho');
+    const toggleChkBtn = document.getElementById('toggleCheck');
 
-    window.adicionarTexto = () => {
-      const id = Date.now();
-      set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "texto", valor: "", fonte: "Arial", tamanho: "18px" });
-    };
+    /* ======== STATE ======== */
+    let focoId = null; // id do bloco focado
 
-    window.adicionarCaixa = () => {
-      const id = Date.now();
-      set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "caixa", valor: "", marcado: false, fonte: "Arial", tamanho: "18px" });
-    };
+    /* ======== HELPERS ======== */
+    const novaChave = () => push(blocosRef).key;
 
-    function criarLinha(id, item) {
-      const div = document.createElement("div");
-      div.className = "linha";
-      div.dataset.id = id;
+    function criarBlocoDOM(id, data){
+      const linha = document.createElement('div');
+      linha.className = 'linha';
+      linha.dataset.id = id;
+      linha.dataset.tipo = data.tipo || 'texto';
 
-      if (item.tipo === "texto") {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = item.valor || "";
-        input.style.fontFamily = item.fonte || "Arial";
-        input.style.fontSize = item.tamanho || "18px";
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = !!data.marcado;
 
-        input.addEventListener("input", e => {
-          update(ref(db, `salas/${sala}/notas/${id}`), { valor: e.target.value });
+      const bloco = document.createElement('div');
+      bloco.className = 'bloco';
+      bloco.contentEditable = "true";
+      bloco.dataset.placeholder = "Toque e escreva...";
+      bloco.innerText = (data.conteudo || "");
+      bloco.style.fontFamily = data.fonte || 'Arial';
+      bloco.style.fontSize   = data.tamanho || '18px';
+
+      // eventos
+      bloco.addEventListener('focus', () => {
+        focoId = id;
+        document.querySelectorAll('.linha').forEach(l=>l.classList.remove('focused'));
+        linha.classList.add('focused');
+        // refletir fonte/tamanho nos selects
+        fonteSel.value = (data.fonte || 'Arial');
+        tamSel.value   = (data.tamanho || '18px');
+      });
+
+      // sincroniza texto
+      bloco.addEventListener('input', () => {
+        update(ref(db, `salas/${sala}/blocos/${id}`), {
+          conteudo: bloco.innerText
         });
+        // se for o último e ficou com algo, garante uma nova linha no final
+        ensureLinhaVaziaNoFim();
+      });
 
-        input.addEventListener("keydown", e => {
-          if (e.key === "Backspace" && input.value === "") {
-            remove(ref(db, `salas/${sala}/notas/${id}`));
-          }
-        });
+      // remover via BACKSPACE quando estiver vazio
+      bloco.addEventListener('keydown', (e) => {
+        // se a linha está vazia e o usuário apertou backspace, apaga a linha
+        if(e.key === 'Backspace' && bloco.innerText.trim() === ''){
+          e.preventDefault();
+          remove(ref(db, `salas/${sala}/blocos/${id}`));
+        }
+      });
 
-        div.appendChild(input);
-      } else if (item.tipo === "caixa") {
-        const check = document.createElement("input");
-        check.type = "checkbox";
-        check.checked = item.marcado || false;
-        check.addEventListener("change", e => {
-          update(ref(db, `salas/${sala}/notas/${id}`), { marcado: e.target.checked });
-        });
+      // checkbox
+      check.addEventListener('change', () => {
+        update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: check.checked });
+      });
 
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = item.valor || "";
-        input.style.fontFamily = item.fonte || "Arial";
-        input.style.fontSize = item.tamanho || "18px";
-
-        input.addEventListener("input", e => {
-          update(ref(db, `salas/${sala}/notas/${id}`), { valor: e.target.value });
-        });
-
-        input.addEventListener("keydown", e => {
-          if (e.key === "Backspace" && input.value === "") {
-            remove(ref(db, `salas/${sala}/notas/${id}`));
-          }
-        });
-
-        div.appendChild(check);
-        div.appendChild(input);
-      }
-
-      // botão de excluir
-      const del = document.createElement("span");
-      del.textContent = "🗑";
-      del.className = "lixeira";
-      del.onclick = () => remove(ref(db, `salas/${sala}/notas/${id}`));
-      div.appendChild(del);
-
-      return div;
+      linha.appendChild(check);
+      linha.appendChild(bloco);
+      return linha;
     }
 
-    onChildAdded(notasRef, snapshot => {
-      const id = snapshot.key;
-      const item = snapshot.val();
-      const linha = criarLinha(id, item);
-      container.appendChild(linha);
-    });
+    function renderAdd(id, data){
+      const node = criarBlocoDOM(id, data);
+      editor.appendChild(node);
+    }
 
-    onChildChanged(notasRef, snapshot => {
-      const id = snapshot.key;
-      const item = snapshot.val();
-      const linha = container.querySelector(`[data-id="${id}"]`);
-      if (linha) {
-        const input = linha.querySelector("input[type='text']");
-        if (input) {
-          input.value = item.valor || "";
-          input.style.fontFamily = item.fonte || "Arial";
-          input.style.fontSize = item.tamanho || "18px";
-        }
-        const check = linha.querySelector("input[type='checkbox']");
-        if (check) check.checked = item.marcado || false;
+    function renderChange(id, data){
+      const node = editor.querySelector(`.linha[data-id="${id}"]`);
+      if(!node) return renderAdd(id, data);
+
+      node.dataset.tipo = data.tipo || 'texto';
+      const check = node.querySelector('input[type="checkbox"]');
+      const bloco = node.querySelector('.bloco');
+
+      // visibilidade do checkbox
+      if(node.dataset.tipo === 'texto'){
+        check.style.display = 'none';
+      } else {
+        check.style.display = '';
+      }
+
+      // conteúdo/estilo
+      if(document.activeElement !== bloco){
+        bloco.innerText = data.conteudo || '';
+      }
+      bloco.style.fontFamily = data.fonte || 'Arial';
+      bloco.style.fontSize   = data.tamanho || '18px';
+      check.checked = !!data.marcado;
+    }
+
+    function renderRemove(id){
+      const node = editor.querySelector(`.linha[data-id="${id}"]`);
+      if(node) node.remove();
+      // se ficou vazio, garante uma linha nova
+      ensureLinhaVaziaNoFim();
+    }
+
+    // sempre mantém UMA linha vazia no final para o usuário tocar e digitar
+    function ensureLinhaVaziaNoFim(){
+      const linhas = [...editor.querySelectorAll('.linha')];
+      const ultima = linhas[linhas.length-1];
+      if(!ultima){
+        criarLinhaBD(); // se não tem nenhuma, cria
+        return;
+      }
+      const blocoUlt = ultima.querySelector('.bloco');
+      if(blocoUlt && blocoUlt.innerText.trim() !== ''){
+        criarLinhaBD();
+      }
+    }
+
+    function criarLinhaBD(){
+      const id = novaChave();
+      const data = {
+        tipo: 'texto',         // começa como texto simples
+        conteudo: '',
+        marcado: false,
+        fonte: 'Arial',
+        tamanho: '18px',
+        ordem: Date.now()
+      };
+      set(ref(db, `salas/${sala}/blocos/${id}`), data);
+      return id;
+    }
+
+    // clicar na área em branco → foca/gera a última linha
+    editor.addEventListener('pointerdown', (e)=>{
+      if(e.target.id === 'editor'){
+        ensureLinhaVaziaNoFim();
+        const ultima = editor.querySelector('.linha:last-child .bloco');
+        if(ultima){ ultima.focus(); }
       }
     });
 
-    // mudar fonte/tamanho em tempo real do item selecionado
-    window.aplicarFonteTamanho = () => {
-      const fonte = document.getElementById("fonte").value;
-      const tamanho = document.getElementById("tamanho").value;
+    // toolbar: fonte/tamanho aplicam na linha focada
+    window.aplicarFonte = function(){
+      if(!focoId) return;
+      const fonte = fonteSel.value;
+      update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte });
+    }
+    window.aplicarTamanho = function(){
+      if(!focoId) return;
+      const tamanho = tamSel.value;
+      update(ref(db, `salas/${sala}/blocos/${focoId}`), { tamanho });
+    }
 
-      const ativo = document.activeElement;
-      if (ativo && ativo.tagName === "INPUT" && ativo.type === "text") {
-        const id = ativo.closest(".linha").dataset.id;
-        ativo.style.fontFamily = fonte;
-        ativo.style.fontSize = tamanho;
-        update(ref(db, `salas/${sala}/notas/${id}`), { fonte, tamanho });
+    // toolbar: alternar checkbox da linha focada
+    window.toggleCheckbox = function(){
+      if(!focoId) return;
+      const node = editor.querySelector(`.linha[data-id="${focoId}"]`);
+      if(!node) return;
+      const novoTipo = (node.dataset.tipo === 'texto') ? 'caixa' : 'texto';
+      update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
+    }
+
+    /* ======== LISTENERS FIREBASE ======== */
+    onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
+    onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
+    onChildRemoved(blocosRef, (snap)=> renderRemove(snap.key));
+
+    // inicia garantindo 1 linha
+    onValue(blocosRef, (snap)=>{
+      if(!snap.exists()){
+        criarLinhaBD();
       }
-    };
+      // oculta/mostra checkbox conforme tipo (em lote)
+      requestAnimationFrame(()=>{
+        editor.querySelectorAll('.linha').forEach(l=>{
+          const tipo = l.dataset.tipo;
+          const chk = l.querySelector('input[type="checkbox"]');
+          if(!chk) return;
+          chk.style.display = (tipo === 'texto') ? 'none' : '';
+        });
+      });
+    });
   </script>
 </head>
 <body>
   <header>
-    <img src="https://i.ibb.co/4Kf08F7/acai-logo.png" alt="Logo"> <!-- sua logo -->
-    <h2>Controle de Estoque</h2>
+    <div class="brand">
+      <!-- Coloque sua imagem como 'logo.png' na mesma pasta -->
+      <img src="logo.png" alt="Açaí Delivery Pádua" class="logo" />
+      <h1>Controle de Estoque</h1>
+    </div>
   </header>
 
-  <div id="controls">
-    <button onclick="adicionarTexto()">Adicionar Texto</button>
-    <button onclick="adicionarCaixa()">Adicionar Caixinha</button>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <button id="toggleCheck" class="primary" onclick="toggleCheckbox()">Checkbox</button>
 
-    <select id="fonte" onchange="aplicarFonteTamanho()">
+    <select id="fonte" onchange="aplicarFonte()">
       <option value="Arial">Arial</option>
       <option value="Verdana">Verdana</option>
       <option value="Courier New">Courier</option>
       <option value="Times New Roman">Times</option>
     </select>
 
-    <select id="tamanho" onchange="aplicarFonteTamanho()">
+    <select id="tamanho" onchange="aplicarTamanho()">
       <option value="14px">14px</option>
+      <option value="16px">16px</option>
       <option value="18px" selected>18px</option>
+      <option value="22px">22px</option>
       <option value="24px">24px</option>
+      <option value="28px">28px</option>
       <option value="32px">32px</option>
     </select>
   </div>
 
-  <div id="notas"></div>
+  <!-- Editor livre -->
+  <div id="editor" aria-label="Área de edição – toque para digitar"></div>
 </body>
 </html>
