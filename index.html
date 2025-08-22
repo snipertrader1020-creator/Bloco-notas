@@ -21,7 +21,6 @@ body{
   font-family: Arial, Helvetica, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
-
 header{
   background: linear-gradient(180deg, var(--roxo), var(--roxo-escuro));
   color:#fff;
@@ -43,7 +42,6 @@ header h1{
   font-weight:700;
   letter-spacing:.3px;
 }
-
 #toolbar{
   background:#fff;
   padding:8px;
@@ -63,7 +61,6 @@ header h1{
   color:#fff; border-color:var(--verde);
   font-weight:600;
 }
-
 #editor{
   background:#fff;
   margin:10px;
@@ -79,13 +76,11 @@ header h1{
   border-bottom:1px dashed #ececf0;
 }
 .linha:last-child{ border-bottom:none; }
-
 .linha input[type="checkbox"]{
   width:18px; height:18px; margin-top:6px; flex:0 0 auto;
   accent-color: var(--verde);
 }
 .linha[data-tipo="texto"] input[type="checkbox"]{ display:none; }
-
 .bloco{
   flex:1 1 auto;
   min-height:24px;
@@ -98,14 +93,11 @@ header h1{
   word-break:break-word;
 }
 .linha.focused{ background:#fbfbfe; }
-
 .bloco:empty:before{
   content: attr(data-placeholder);
   color:#9aa0a6;
 }
-
 .apagar{ display:none; }
-
 @media (max-width:480px){
   header h1{ font-size:16px; }
   #toolbar select{ min-width:110px; }
@@ -159,7 +151,6 @@ function criarBlocoDOM(id, data){
   bloco.style.fontFamily = data.fonte || 'Arial';
   bloco.style.fontSize   = data.tamanho || '18px';
 
-  // foco e selects
   bloco.addEventListener('focus', () => {
     focoId = id;
     document.querySelectorAll('.linha').forEach(l=>l.classList.remove('focused'));
@@ -168,13 +159,11 @@ function criarBlocoDOM(id, data){
     tamSel.value   = (data.tamanho || '18px');
   });
 
-  // input
   bloco.addEventListener('input', () => {
     update(ref(db, `salas/${sala}/blocos/${id}`), { conteudo: bloco.innerText });
     ensureLinhaVaziaNoFim();
   });
 
-  // backspace remove
   bloco.addEventListener('keydown', (e) => {
     if(e.key === 'Backspace' && bloco.innerText.trim() === ''){
       e.preventDefault();
@@ -182,20 +171,12 @@ function criarBlocoDOM(id, data){
     }
   });
 
-  // checkbox change
   check.addEventListener('change', () => {
     update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: check.checked });
   });
 
   linha.appendChild(check);
   linha.appendChild(bloco);
-
-  // clique na linha vazia alterna tipo
-  linha.addEventListener('dblclick', ()=>{
-    const novoTipo = (linha.dataset.tipo === 'texto') ? 'caixa' : 'texto';
-    update(ref(db, `salas/${sala}/blocos/${id}`), { tipo: novoTipo });
-  });
-
   return linha;
 }
 
@@ -226,9 +207,9 @@ function ensureLinhaVaziaNoFim(){
   if(blocoUlt && blocoUlt.innerText.trim() !== '') criarLinhaBD();
 }
 
-function criarLinhaBD(){
+function criarLinhaBD(conteudo='', tipo='texto'){
   const id = novaChave();
-  const data = { tipo: 'texto', conteudo:'', marcado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
+  const data = { tipo, conteudo, marcado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
   set(ref(db, `salas/${sala}/blocos/${id}`), data);
   return id;
 }
@@ -239,6 +220,16 @@ editor.addEventListener('pointerdown', (e)=>{
     const ultima = editor.querySelector('.linha:last-child .bloco');
     if(ultima) ultima.focus();
   }
+});
+
+// **NOVO**: Detectar colagem de múltiplas linhas
+editor.addEventListener('paste', (e)=>{
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  const linhas = text.split(/\r?\n/).filter(l=>l.trim()!=='');
+  linhas.forEach(l=>{
+    criarLinhaBD(l, 'caixa'); // cada linha já vira checkbox
+  });
 });
 
 // toolbar
@@ -283,34 +274,4 @@ onValue(blocosRef, (snap)=>{
 </head>
 <body>
 <header>
-  <div class="brand">
-    <img src="logo.png" alt="Açaí Delivery Pádua" class="logo" />
-    <h1>Controle de Estoque</h1>
-  </div>
-</header>
-
-<div id="toolbar">
-  <button id="toggleCheck" class="primary" onclick="toggleCheckbox()">Checkbox</button>
-  <button onclick="toggleFundo()">Fundo</button>
-
-  <select id="fonte" onchange="aplicarFonte()">
-    <option value="Arial">Arial</option>
-    <option value="Verdana">Verdana</option>
-    <option value="Courier New">Courier</option>
-    <option value="Times New Roman">Times</option>
-  </select>
-
-  <select id="tamanho" onchange="aplicarTamanho()">
-    <option value="14px">14px</option>
-    <option value="16px">16px</option>
-    <option value="18px" selected>18px</option>
-    <option value="22px">22px</option>
-    <option value="24px">24px</option>
-    <option value="28px">28px</option>
-    <option value="32px">32px</option>
-  </select>
-</div>
-
-<div id="editor" aria-label="Área de edição – toque para digitar"></div>
-</body>
-</html>
+  <div class
