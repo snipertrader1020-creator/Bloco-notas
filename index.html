@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <style>
     :root{
-      --roxo:#641b6b;     /* roxo principal (baseado na sua logo) */
+      --roxo:#641b6b;
       --roxo-escuro:#4a0f52;
-      --verde:#45b043;    /* verde da folha */
+      --verde:#45b043;
       --cinza:#f6f7f9;
       --borda:#e6e7ea;
       --texto:#212529;
@@ -22,40 +22,38 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* topo com logo */
     header{
       background: linear-gradient(180deg, var(--roxo), var(--roxo-escuro));
       color:#fff;
-      padding:14px 12px 10px;
+      padding:12px 10px 8px;
       text-align:center;
     }
     header .brand{
-      display:flex; align-items:center; justify-content:center; gap:10px;
+      display:flex; align-items:center; justify-content:center; gap:8px;
     }
     header img.logo{
-      height:44px; width:auto; object-fit:contain;
+      height:40px; width:auto; object-fit:contain;
       border-radius:10px;
       background:#fff;
       padding:4px 6px;
     }
     header h1{
       margin:0;
-      font-size:20px;
+      font-size:18px;
       font-weight:700;
       letter-spacing:.3px;
     }
 
-    /* barra de controles (mobile first) */
     #toolbar{
       background:#fff;
-      padding:10px;
-      display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+      padding:8px;
+      display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
       border-bottom:1px solid var(--borda);
       position:sticky; top:0; z-index:5;
     }
     #toolbar button, #toolbar select{
-      padding:10px 12px;
-      font-size:16px;
+      padding:8px 10px;
+      font-size:15px;
       border-radius:10px;
       border:1px solid var(--borda);
       background:#fff;
@@ -66,69 +64,59 @@
       font-weight:600;
     }
 
-    /* área do editor */
     #editor{
       background:#fff;
-      margin:12px;
+      margin:10px;
       border-radius:14px;
       box-shadow: 0 6px 18px rgba(0,0,0,.06);
       border:1px solid var(--borda);
       overflow:hidden;
+      transition: background 0.3s;
     }
     .linha{
-      display:flex; align-items:flex-start; gap:10px;
-      padding:12px 14px;
+      display:flex; align-items:flex-start; gap:8px;
+      padding:8px 10px;
       border-bottom:1px dashed #ececf0;
     }
     .linha:last-child{ border-bottom:none; }
 
-    /* checkbox grande para toque */
     .linha input[type="checkbox"]{
-      width:22px; height:22px; margin-top:6px; flex:0 0 auto;
+      width:26px; height:26px; margin-top:4px; flex:0 0 auto;
       accent-color: var(--verde);
     }
     .linha[data-tipo="texto"] input[type="checkbox"]{ display:none; }
 
-    /* bloco editável: “texto liso” */
     .bloco{
       flex:1 1 auto;
-      min-height:28px;
+      min-height:24px;
       outline:none;
       border:none;
       background:transparent;
-      font-size:18px;
-      line-height:1.45;
-      padding:4px 2px;
+      font-size:16px;
+      line-height:1.35;
+      padding:2px 2px;
       word-break:break-word;
     }
-    /* feedback sutil ao focar */
     .linha.focused{ background:#fbfbfe; }
 
-    /* dica sutil quando vazio */
     .bloco:empty:before{
       content: attr(data-placeholder);
       color:#9aa0a6;
     }
 
-    /* botão fantasma de deletar (só por acessibilidade; remoção real é via backspace) */
-    .apagar{
-      display:none;
-    }
+    .apagar{ display:none; }
 
-    /* toques maiores no celular */
     @media (max-width:480px){
-      header h1{ font-size:18px; }
-      #toolbar{ gap:6px; }
-      #toolbar select{ min-width:128px; }
+      header h1{ font-size:16px; }
+      #toolbar select{ min-width:110px; }
+      #toolbar button, #toolbar select{ font-size:14px; padding:6px 8px; }
     }
   </style>
 
-  <!-- Firebase (modular) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onChildAdded, onChildChanged, onChildRemoved, set, update, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-    /* ======== CONFIG FIREBASE ======== */
     const firebaseConfig = {
       apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
       authDomain: "lista-de-itens-em-falta.firebaseapp.com",
@@ -142,20 +130,16 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    /* ======== REFS ======== */
     const sala = location.hash.replace("#","") || "default";
     const blocosRef = ref(db, `salas/${sala}/blocos`);
 
-    /* ======== UI ELTS ======== */
     const editor = document.getElementById('editor');
     const fonteSel = document.getElementById('fonte');
     const tamSel   = document.getElementById('tamanho');
     const toggleChkBtn = document.getElementById('toggleCheck');
 
-    /* ======== STATE ======== */
-    let focoId = null; // id do bloco focado
+    let focoId = null;
 
-    /* ======== HELPERS ======== */
     const novaChave = () => push(blocosRef).key;
 
     function criarBlocoDOM(id, data){
@@ -176,35 +160,26 @@
       bloco.style.fontFamily = data.fonte || 'Arial';
       bloco.style.fontSize   = data.tamanho || '18px';
 
-      // eventos
       bloco.addEventListener('focus', () => {
         focoId = id;
         document.querySelectorAll('.linha').forEach(l=>l.classList.remove('focused'));
         linha.classList.add('focused');
-        // refletir fonte/tamanho nos selects
         fonteSel.value = (data.fonte || 'Arial');
         tamSel.value   = (data.tamanho || '18px');
       });
 
-      // sincroniza texto
       bloco.addEventListener('input', () => {
-        update(ref(db, `salas/${sala}/blocos/${id}`), {
-          conteudo: bloco.innerText
-        });
-        // se for o último e ficou com algo, garante uma nova linha no final
+        update(ref(db, `salas/${sala}/blocos/${id}`), { conteudo: bloco.innerText });
         ensureLinhaVaziaNoFim();
       });
 
-      // remover via BACKSPACE quando estiver vazio
       bloco.addEventListener('keydown', (e) => {
-        // se a linha está vazia e o usuário apertou backspace, apaga a linha
         if(e.key === 'Backspace' && bloco.innerText.trim() === ''){
           e.preventDefault();
           remove(ref(db, `salas/${sala}/blocos/${id}`));
         }
       });
 
-      // checkbox
       check.addEventListener('change', () => {
         update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: check.checked });
       });
@@ -214,92 +189,50 @@
       return linha;
     }
 
-    function renderAdd(id, data){
-      const node = criarBlocoDOM(id, data);
-      editor.appendChild(node);
-    }
-
+    function renderAdd(id, data){ editor.appendChild(criarBlocoDOM(id, data)); }
     function renderChange(id, data){
       const node = editor.querySelector(`.linha[data-id="${id}"]`);
       if(!node) return renderAdd(id, data);
-
       node.dataset.tipo = data.tipo || 'texto';
       const check = node.querySelector('input[type="checkbox"]');
       const bloco = node.querySelector('.bloco');
-
-      // visibilidade do checkbox
-      if(node.dataset.tipo === 'texto'){
-        check.style.display = 'none';
-      } else {
-        check.style.display = '';
-      }
-
-      // conteúdo/estilo
-      if(document.activeElement !== bloco){
-        bloco.innerText = data.conteudo || '';
-      }
+      check.style.display = (node.dataset.tipo === 'texto') ? 'none' : '';
+      if(document.activeElement !== bloco) bloco.innerText = data.conteudo || '';
       bloco.style.fontFamily = data.fonte || 'Arial';
       bloco.style.fontSize   = data.tamanho || '18px';
       check.checked = !!data.marcado;
     }
-
     function renderRemove(id){
       const node = editor.querySelector(`.linha[data-id="${id}"]`);
       if(node) node.remove();
-      // se ficou vazio, garante uma linha nova
       ensureLinhaVaziaNoFim();
     }
 
-    // sempre mantém UMA linha vazia no final para o usuário tocar e digitar
     function ensureLinhaVaziaNoFim(){
       const linhas = [...editor.querySelectorAll('.linha')];
       const ultima = linhas[linhas.length-1];
-      if(!ultima){
-        criarLinhaBD(); // se não tem nenhuma, cria
-        return;
-      }
+      if(!ultima){ criarLinhaBD(); return; }
       const blocoUlt = ultima.querySelector('.bloco');
-      if(blocoUlt && blocoUlt.innerText.trim() !== ''){
-        criarLinhaBD();
-      }
+      if(blocoUlt && blocoUlt.innerText.trim() !== '') criarLinhaBD();
     }
 
     function criarLinhaBD(){
       const id = novaChave();
-      const data = {
-        tipo: 'texto',         // começa como texto simples
-        conteudo: '',
-        marcado: false,
-        fonte: 'Arial',
-        tamanho: '18px',
-        ordem: Date.now()
-      };
+      const data = { tipo: 'texto', conteudo:'', marcado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
       set(ref(db, `salas/${sala}/blocos/${id}`), data);
       return id;
     }
 
-    // clicar na área em branco → foca/gera a última linha
     editor.addEventListener('pointerdown', (e)=>{
       if(e.target.id === 'editor'){
         ensureLinhaVaziaNoFim();
         const ultima = editor.querySelector('.linha:last-child .bloco');
-        if(ultima){ ultima.focus(); }
+        if(ultima) ultima.focus();
       }
     });
 
-    // toolbar: fonte/tamanho aplicam na linha focada
-    window.aplicarFonte = function(){
-      if(!focoId) return;
-      const fonte = fonteSel.value;
-      update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte });
-    }
-    window.aplicarTamanho = function(){
-      if(!focoId) return;
-      const tamanho = tamSel.value;
-      update(ref(db, `salas/${sala}/blocos/${focoId}`), { tamanho });
-    }
-
-    // toolbar: alternar checkbox da linha focada
+    window.aplicarFonte = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte: fonteSel.value }); }
+    window.aplicarTamanho = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { tamanho: tamSel.value }); }
     window.toggleCheckbox = function(){
       if(!focoId) return;
       const node = editor.querySelector(`.linha[data-id="${focoId}"]`);
@@ -308,17 +241,25 @@
       update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
     }
 
-    /* ======== LISTENERS FIREBASE ======== */
+    // botão extra: alternar fundo do editor
+    window.toggleFundo = function(){
+      const fundos = ['#fff','#f6f7f9','#e8dff5'];
+      const atual = window.getComputedStyle(editor).backgroundColor;
+      let i = fundos.findIndex(c=>rgbToHex(atual)===c);
+      editor.style.background = fundos[(i+1)%fundos.length];
+    }
+    function rgbToHex(rgb){
+      const res = rgb.match(/\d+/g);
+      if(!res) return '#ffffff';
+      return "#" + res.map(x=>parseInt(x).toString(16).padStart(2,'0')).join('');
+    }
+
     onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
     onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
     onChildRemoved(blocosRef, (snap)=> renderRemove(snap.key));
 
-    // inicia garantindo 1 linha
     onValue(blocosRef, (snap)=>{
-      if(!snap.exists()){
-        criarLinhaBD();
-      }
-      // oculta/mostra checkbox conforme tipo (em lote)
+      if(!snap.exists()) criarLinhaBD();
       requestAnimationFrame(()=>{
         editor.querySelectorAll('.linha').forEach(l=>{
           const tipo = l.dataset.tipo;
@@ -333,15 +274,14 @@
 <body>
   <header>
     <div class="brand">
-      <!-- Coloque sua imagem como 'logo.png' na mesma pasta -->
       <img src="logo.png" alt="Açaí Delivery Pádua" class="logo" />
       <h1>Controle de Estoque</h1>
     </div>
   </header>
 
-  <!-- Toolbar -->
   <div id="toolbar">
     <button id="toggleCheck" class="primary" onclick="toggleCheckbox()">Checkbox</button>
+    <button onclick="toggleFundo()">Fundo</button>
 
     <select id="fonte" onchange="aplicarFonte()">
       <option value="Arial">Arial</option>
@@ -361,7 +301,6 @@
     </select>
   </div>
 
-  <!-- Editor livre -->
   <div id="editor" aria-label="Área de edição – toque para digitar"></div>
 </body>
 </html>
