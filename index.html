@@ -1,71 +1,76 @@
-<!DOCTYPE html><html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bloco de Notas em Tempo Real</title>
-  <style>
-    :root{
-      --bg:#0b1020; --panel:#121a33; --accent:#6ee7b7; --muted:#9aa4bf; --text:#e6ecff;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sans-serif}
-    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #1c2447;background:linear-gradient(180deg,#0e1430,#0a1026)}
-    header .left{display:flex;gap:10px;align-items:center}
-    .app-title{font-weight:700;font-size:18px}
-    .room{font-size:12px;color:var(--muted)}
-    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    select, input[type="number"], input[type="text"], button{background:#0f1630;color:var(--text);border:1px solid #22306a;border-radius:10px;padding:8px 10px;outline:none}
-    button{cursor:pointer}
-    button.primary{background:var(--accent);color:#05110d;border:none;font-weight:700}
-    main{display:grid;grid-template-columns:1fr;gap:16px;padding:16px;max-width:900px;margin:0 auto}
-    .card{background:var(--panel);border:1px solid #1b2450;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .card h3{margin:0;padding:14px 16px;border-bottom:1px solid #1c2447;opacity:.9}
-    .card .body{padding:14px}#editor{display:flex;flex-direction:column;gap:8px}
-.item{display:flex;align-items:center;gap:10px;background:#0f1838;border:1px solid #26336b;border-radius:12px;padding:10px}
-.item input[type="text"]{flex:1;border:none;background:transparent;color:var(--text);outline:none;font-size:inherit}
-.item .remove{border:none;background:#1b2450;color:#b6c0e8;border-radius:10px;padding:6px 10px}
-.empty{color:var(--muted);font-size:14px}
-.footer{padding:10px 16px;color:var(--muted);font-size:12px}
+  <meta charset="UTF-8">
+  <title>Bloco de Notas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f8f9fa;
+    }
+    #controls {
+      margin-bottom: 15px;
+    }
+    button, select {
+      margin: 5px;
+      padding: 8px;
+    }
+    #notas {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .linha {
+      margin: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .linha input[type="text"] {
+      flex: 1;
+      padding: 5px;
+    }
   </style>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
 </head>
 <body>
-  <header>
-    <div class="left">
-      <div class="app-title">📝 Bloco de Notas</div>
-      <div id="roomInfo" class="room"></div>
-    </div>
-    <div class="toolbar">
-      <label>Fonte
-        <select id="fontSelector">
-          <option>Inter</option>
-          <option>Arial</option>
-          <option>Verdana</option>
-          <option>Times New Roman</option>
-          <option>Courier New</option>
-        </select>
-      </label>
-      <label>Tamanho
-        <input id="fontSize" type="number" min="10" max="48" value="18" />
-      </label>
-      <button id="addText" class="primary">+ Texto</button>
-      <button id="addCheck" class="primary">+ Caixinha</button>
-      <button id="shareBtn">Copiar link</button>
-    </div>
-  </header>  <main>
-    <section class="card">
-      <h3>Conteúdo</h3>
-      <div class="body">
-        <div id="editor"></div>
-        <div id="empty" class="empty">Nenhum item ainda. Use "+ Texto" ou "+ Caixinha".</div>
-      </div>
-    </section>
-  </main>  <div class="footer">Compartilhe o link desta página para editar a <b>mesma sala</b> em tempo real em outro celular/computador.</div>  <script type="module">
-    // ===== Firebase (Realtime Database) =====
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getDatabase, ref, onValue, update, set, push, child } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  <h2>📝 Bloco de Notas</h2>
 
+  <div id="controls">
+    <button onclick="adicionarTexto()">Adicionar Texto</button>
+    <button onclick="adicionarCaixa()">Adicionar Caixinha</button>
+
+    <label>Fonte:
+      <select id="fonte" onchange="atualizarFonte()">
+        <option value="Arial">Arial</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Courier New">Courier</option>
+        <option value="Times New Roman">Times</option>
+      </select>
+    </label>
+
+    <label>Tamanho:
+      <select id="tamanho" onchange="atualizarFonte()">
+        <option value="14px">14px</option>
+        <option value="18px" selected>18px</option>
+        <option value="24px">24px</option>
+        <option value="32px">32px</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="notas"></div>
+
+  <script>
+    // Configuração do Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
       authDomain: "lista-de-itens-em-falta.firebaseapp.com",
@@ -77,111 +82,82 @@
       measurementId: "G-MTRHXEFMP8"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
+    // Inicializar Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // Sala via hash da URL (#minha-sala)
-    function getRoomId(){
-      let id = location.hash.replace('#','').trim();
-      if(!id){ id = Math.random().toString(36).slice(2,8); location.hash = id; }
-      return id;
+    // Sala (cada link tem um id diferente, ex: site.com/#minhaSala)
+    const sala = location.hash.replace("#", "") || "default";
+
+    const notasRef = db.ref("salas/" + sala + "/notas");
+    const fonteRef = db.ref("salas/" + sala + "/fonte");
+
+    const container = document.getElementById("notas");
+
+    // Adicionar texto simples
+    function adicionarTexto() {
+      const id = Date.now();
+      notasRef.child(id).set({ tipo: "texto", valor: "" });
     }
-    const roomId = getRoomId();
-    const roomRef = ref(db, `rooms/${roomId}`);
-    document.getElementById('roomInfo').textContent = `Sala: ${roomId}`;
 
-    // UI Elements
-    const fontSel = document.getElementById('fontSelector');
-    const fontSize = document.getElementById('fontSize');
-    const editor = document.getElementById('editor');
-    const emptyEl = document.getElementById('empty');
+    // Adicionar caixinha
+    function adicionarCaixa() {
+      const id = Date.now();
+      notasRef.child(id).set({ tipo: "caixa", valor: "", marcado: false });
+    }
 
-    // Auth anônima (melhor p/ regras seguras)
-    await signInAnonymously(auth).catch(console.error);
-    onAuthStateChanged(auth, (user)=>{ if(user) init(); });
+    // Atualizar fonte global
+    function atualizarFonte() {
+      const fonte = document.getElementById("fonte").value;
+      const tamanho = document.getElementById("tamanho").value;
+      fonteRef.set({ fonte, tamanho });
+    }
 
-    function setEmpty(show){ emptyEl.style.display = show ? 'block' : 'none'; }
+    // Renderizar notas em tempo real
+    notasRef.on("value", snapshot => {
+      container.innerHTML = "";
+      snapshot.forEach(child => {
+        const item = child.val();
+        const id = child.key;
+        const div = document.createElement("div");
+        div.className = "linha";
 
-    function render(items){
-      editor.innerHTML = '';
-      const ids = Object.keys(items||{});
-      if(!ids.length){ setEmpty(true); return; }
-      setEmpty(false);
-      ids.sort((a,b)=> (items[a].order||0) - (items[b].order||0));
-      for(const id of ids){
-        const it = items[id];
-        const row = document.createElement('div');
-        row.className = 'item';
-        row.style.fontFamily = fontSel.value;
-        row.style.fontSize = fontSize.value + 'px';
+        if (item.tipo === "texto") {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = item.valor || "";
+          input.oninput = e => notasRef.child(id).update({ valor: e.target.value });
+          div.appendChild(input);
+        } else if (item.tipo === "caixa") {
+          const check = document.createElement("input");
+          check.type = "checkbox";
+          check.checked = item.marcado || false;
+          check.onchange = e => notasRef.child(id).update({ marcado: e.target.checked });
 
-        if(it.type === 'check'){
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = !!it.checked;
-          cb.addEventListener('change', ()=> update(child(roomRef, `items/${id}`), { checked: cb.checked }));
-          const txt = document.createElement('input');
-          txt.type = 'text';
-          txt.value = it.text||'';
-          txt.addEventListener('input', ()=> update(child(roomRef, `items/${id}`), { text: txt.value }));
-          const rm = document.createElement('button');
-          rm.className = 'remove';
-          rm.textContent = 'Remover';
-          rm.addEventListener('click', ()=> update(child(roomRef, `items`), { [id]: null }));
-          row.append(cb, txt, rm);
-        } else { // text
-          const txt = document.createElement('input');
-          txt.type = 'text';
-          txt.value = it.text||'';
-          txt.addEventListener('input', ()=> update(child(roomRef, `items/${id}`), { text: txt.value }));
-          const rm = document.createElement('button');
-          rm.className = 'remove';
-          rm.textContent = 'Remover';
-          rm.addEventListener('click', ()=> update(child(roomRef, `items`), { [id]: null }));
-          row.append(txt, rm);
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = item.valor || "";
+          input.oninput = e => notasRef.child(id).update({ valor: e.target.value });
+
+          div.appendChild(check);
+          div.appendChild(input);
         }
-        editor.appendChild(row);
+
+        container.appendChild(div);
+      });
+    });
+
+    // Fonte em tempo real
+    fonteRef.on("value", snap => {
+      const f = snap.val();
+      if (f) {
+        container.style.fontFamily = f.fonte;
+        container.style.fontSize = f.tamanho;
+        document.getElementById("fonte").value = f.fonte;
+        document.getElementById("tamanho").value = f.tamanho;
       }
-    }
+    });
 
-    function init(){
-      // Sync em tempo real
-      onValue(roomRef, (snap)=>{
-        const data = snap.val() || {};
-        // fonte/tamanho
-        if(data.font){ fontSel.value = data.font; }
-        if(data.size){ fontSize.value = data.size; }
-        // re-render com estilos atuais
-        render(data.items||{});
-      });
-
-      // Controles de fonte/tamanho (aplica e salva globalmente)
-      fontSel.addEventListener('change', ()=>{
-        update(roomRef, { font: fontSel.value });
-        Array.from(editor.children).forEach(el=> el.style.fontFamily = fontSel.value);
-      });
-      fontSize.addEventListener('change', ()=>{
-        update(roomRef, { size: Number(fontSize.value) });
-        Array.from(editor.children).forEach(el=> el.style.fontSize = fontSize.value + 'px');
-      });
-
-      // Adicionar itens
-      document.getElementById('addText').addEventListener('click', ()=> addItem('text'));
-      document.getElementById('addCheck').addEventListener('click', ()=> addItem('check'));
-
-      // Compartilhar link
-      document.getElementById('shareBtn').addEventListener('click', async ()=>{
-        const url = location.href;
-        try{ await navigator.clipboard.writeText(url); alert('Link copiado!'); }
-        catch{ prompt('Copie o link:', url); }
-      });
-    }
-
-    function addItem(type){
-      const id = push(child(roomRef, 'items')).key;
-      const data = { type, text: type==='text' ? 'Novo texto' : 'Novo item', checked:false, order: Date.now() };
-      update(child(roomRef, 'items'), { [id]: data });
-    }
-  </script></body>
+  </script>
+</body>
 </html>
