@@ -2,47 +2,64 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Bloco de Notas</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Controle de Estoque</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 10px;
+      margin: 0;
       background: #f8f9fa;
+      color: #333;
+    }
+
+    header {
+      background: #4B0055; /* Roxo da logo */
+      color: white;
+      text-align: center;
+      padding: 15px;
+    }
+
+    header img {
+      max-height: 60px;
+      display: block;
+      margin: 0 auto 10px;
     }
 
     #controls {
-      margin-bottom: 12px;
+      background: #eee;
+      padding: 10px;
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 10px;
+      justify-content: center;
     }
 
     button, select {
-      flex: 1;
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    button {
+      background: #7B1FA2; /* Roxo mais claro */
+      color: white;
     }
 
     #notas {
+      padding: 15px;
       background: white;
-      padding: 12px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
       min-height: 200px;
     }
 
     .linha {
-      margin: 10px 0;
+      margin: 8px 0;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    /* Campo de texto estilo "bloco de notas" */
     .linha input[type="text"] {
       flex: 1;
       padding: 4px;
@@ -50,18 +67,17 @@
       border-bottom: 1px dashed transparent;
       outline: none;
       background: transparent;
-      font: inherit;
-      font-size: 18px; /* maior para celular */
     }
 
     .linha input[type="text"]:focus {
       border-bottom: 1px dashed #aaa;
     }
 
-    /* Checkbox maior para toque */
-    .linha input[type="checkbox"] {
-      width: 22px;
-      height: 22px;
+    .lixeira {
+      cursor: pointer;
+      color: red;
+      font-weight: bold;
+      font-size: 18px;
     }
   </style>
 
@@ -85,51 +101,41 @@
 
     const sala = location.hash.replace("#", "") || "default";
     const notasRef = ref(db, "salas/" + sala + "/notas");
-    const fonteRef = ref(db, "salas/" + sala + "/fonte");
 
     const container = document.getElementById("notas");
 
-    // Adicionar texto
     window.adicionarTexto = () => {
       const id = Date.now();
-      set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "texto", valor: "" });
+      set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "texto", valor: "", fonte: "Arial", tamanho: "18px" });
     };
 
-    // Adicionar caixinha
     window.adicionarCaixa = () => {
       const id = Date.now();
-      set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "caixa", valor: "", marcado: false });
+      set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "caixa", valor: "", marcado: false, fonte: "Arial", tamanho: "18px" });
     };
 
-    // Atualizar fonte
-    window.atualizarFonte = () => {
-      const fonte = document.getElementById("fonte").value;
-      const tamanho = document.getElementById("tamanho").value;
-      set(fonteRef, { fonte, tamanho });
-    };
-
-    // Criar linha
     function criarLinha(id, item) {
       const div = document.createElement("div");
       div.className = "linha";
       div.dataset.id = id;
 
-      function excluirSeVazio(input) {
+      if (item.tipo === "texto") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = item.valor || "";
+        input.style.fontFamily = item.fonte || "Arial";
+        input.style.fontSize = item.tamanho || "18px";
+
+        input.addEventListener("input", e => {
+          update(ref(db, `salas/${sala}/notas/${id}`), { valor: e.target.value });
+        });
+
         input.addEventListener("keydown", e => {
           if (e.key === "Backspace" && input.value === "") {
             remove(ref(db, `salas/${sala}/notas/${id}`));
           }
         });
-      }
 
-      if (item.tipo === "texto") {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = item.valor || "";
-        input.addEventListener("input", e => {
-          update(ref(db, `salas/${sala}/notas/${id}`), { valor: e.target.value });
-        });
-        excluirSeVazio(input);
         div.appendChild(input);
       } else if (item.tipo === "caixa") {
         const check = document.createElement("input");
@@ -142,19 +148,33 @@
         const input = document.createElement("input");
         input.type = "text";
         input.value = item.valor || "";
+        input.style.fontFamily = item.fonte || "Arial";
+        input.style.fontSize = item.tamanho || "18px";
+
         input.addEventListener("input", e => {
           update(ref(db, `salas/${sala}/notas/${id}`), { valor: e.target.value });
         });
-        excluirSeVazio(input);
+
+        input.addEventListener("keydown", e => {
+          if (e.key === "Backspace" && input.value === "") {
+            remove(ref(db, `salas/${sala}/notas/${id}`));
+          }
+        });
 
         div.appendChild(check);
         div.appendChild(input);
       }
 
+      // botão de excluir
+      const del = document.createElement("span");
+      del.textContent = "🗑";
+      del.className = "lixeira";
+      del.onclick = () => remove(ref(db, `salas/${sala}/notas/${id}`));
+      div.appendChild(del);
+
       return div;
     }
 
-    // Firebase listeners
     onChildAdded(notasRef, snapshot => {
       const id = snapshot.key;
       const item = snapshot.val();
@@ -167,42 +187,50 @@
       const item = snapshot.val();
       const linha = container.querySelector(`[data-id="${id}"]`);
       if (linha) {
-        if (item.tipo === "texto") {
-          linha.querySelector("input[type='text']").value = item.valor || "";
-        } else if (item.tipo === "caixa") {
-          linha.querySelector("input[type='checkbox']").checked = item.marcado || false;
-          linha.querySelector("input[type='text']").value = item.valor || "";
+        const input = linha.querySelector("input[type='text']");
+        if (input) {
+          input.value = item.valor || "";
+          input.style.fontFamily = item.fonte || "Arial";
+          input.style.fontSize = item.tamanho || "18px";
         }
+        const check = linha.querySelector("input[type='checkbox']");
+        if (check) check.checked = item.marcado || false;
       }
     });
 
-    // Atualizar fonte/tamanho em tempo real
-    onValue(fonteRef, snap => {
-      const f = snap.val();
-      if (f) {
-        container.style.fontFamily = f.fonte;
-        container.style.fontSize = f.tamanho;
-        document.getElementById("fonte").value = f.fonte;
-        document.getElementById("tamanho").value = f.tamanho;
+    // mudar fonte/tamanho em tempo real do item selecionado
+    window.aplicarFonteTamanho = () => {
+      const fonte = document.getElementById("fonte").value;
+      const tamanho = document.getElementById("tamanho").value;
+
+      const ativo = document.activeElement;
+      if (ativo && ativo.tagName === "INPUT" && ativo.type === "text") {
+        const id = ativo.closest(".linha").dataset.id;
+        ativo.style.fontFamily = fonte;
+        ativo.style.fontSize = tamanho;
+        update(ref(db, `salas/${sala}/notas/${id}`), { fonte, tamanho });
       }
-    });
+    };
   </script>
 </head>
 <body>
-  <h2>📝 Bloco de Notas</h2>
+  <header>
+    <img src="https://i.ibb.co/4Kf08F7/acai-logo.png" alt="Logo"> <!-- sua logo -->
+    <h2>Controle de Estoque</h2>
+  </header>
 
   <div id="controls">
-    <button onclick="adicionarTexto()">+ Texto</button>
-    <button onclick="adicionarCaixa()">+ Caixinha</button>
+    <button onclick="adicionarTexto()">Adicionar Texto</button>
+    <button onclick="adicionarCaixa()">Adicionar Caixinha</button>
 
-    <select id="fonte" onchange="atualizarFonte()">
+    <select id="fonte" onchange="aplicarFonteTamanho()">
       <option value="Arial">Arial</option>
       <option value="Verdana">Verdana</option>
       <option value="Courier New">Courier</option>
       <option value="Times New Roman">Times</option>
     </select>
 
-    <select id="tamanho" onchange="atualizarFonte()">
+    <select id="tamanho" onchange="aplicarFonteTamanho()">
       <option value="14px">14px</option>
       <option value="18px" selected>18px</option>
       <option value="24px">24px</option>
