@@ -22,20 +22,28 @@
       padding: 15px;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      min-height: 200px;
     }
     .linha {
-      margin: 8px 0;
+      margin: 6px 0;
       display: flex;
       align-items: center;
       gap: 8px;
     }
+    /* Estilo "bloco de notas" */
     .linha input[type="text"] {
       flex: 1;
-      padding: 5px;
+      padding: 2px 4px;
+      border: none;
+      border-bottom: 1px dashed transparent; /* aparece só ao focar */
+      outline: none;
+      background: transparent;
+    }
+    .linha input[type="text"]:focus {
+      border-bottom: 1px dashed #aaa;
     }
   </style>
 
-  <!-- Firebase SDK Modular (versão correta) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onChildAdded, onChildChanged, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -60,7 +68,6 @@
 
     const container = document.getElementById("notas");
 
-    // Funções globais (vão para window para acesso no HTML)
     window.adicionarTexto = () => {
       const id = Date.now();
       set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "texto", valor: "" });
@@ -109,14 +116,6 @@
         div.appendChild(input);
       }
 
-      // Botão de remover
-      const botaoRemover = document.createElement("button");
-      botaoRemover.textContent = "🗑️";
-      botaoRemover.onclick = () => {
-        remove(ref(db, `salas/${sala}/notas/${id}`));
-      };
-      div.appendChild(botaoRemover);
-
       return div;
     }
 
@@ -141,7 +140,6 @@
       }
     });
 
-    // Atualizar estilo da fonte em tempo real
     onValue(fonteRef, snap => {
       const f = snap.val();
       if (f) {
