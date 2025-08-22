@@ -39,7 +39,6 @@
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
 </head>
 <body>
   <h2>📝 Bloco de Notas</h2>
@@ -86,13 +85,47 @@
     const app = firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Sala (cada link tem um id diferente, ex: site.com/#minhaSala)
     const sala = location.hash.replace("#", "") || "default";
-
     const notasRef = db.ref("salas/" + sala + "/notas");
     const fonteRef = db.ref("salas/" + sala + "/fonte");
 
     const container = document.getElementById("notas");
+
+    // Criar elemento de linha
+    function criarLinha(id, item) {
+      const div = document.createElement("div");
+      div.className = "linha";
+      div.dataset.id = id;
+
+      if (item.tipo === "texto") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = item.valor || "";
+        input.addEventListener("input", e => {
+          notasRef.child(id).update({ valor: e.target.value });
+        });
+        div.appendChild(input);
+      } else if (item.tipo === "caixa") {
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.checked = item.marcado || false;
+        check.addEventListener("change", e => {
+          notasRef.child(id).update({ marcado: e.target.checked });
+        });
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = item.valor || "";
+        input.addEventListener("input", e => {
+          notasRef.child(id).update({ valor: e.target.value });
+        });
+
+        div.appendChild(check);
+        div.appendChild(input);
+      }
+
+      return div;
+    }
 
     // Adicionar texto simples
     function adicionarTexto() {
@@ -113,38 +146,26 @@
       fonteRef.set({ fonte, tamanho });
     }
 
-    // Renderizar notas em tempo real
-    notasRef.on("value", snapshot => {
-      container.innerHTML = "";
-      snapshot.forEach(child => {
-        const item = child.val();
-        const id = child.key;
-        const div = document.createElement("div");
-        div.className = "linha";
+    // Atualizar em tempo real (melhorado: cria só quando precisa)
+    notasRef.on("child_added", snapshot => {
+      const id = snapshot.key;
+      const item = snapshot.val();
+      const linha = criarLinha(id, item);
+      container.appendChild(linha);
+    });
 
+    notasRef.on("child_changed", snapshot => {
+      const id = snapshot.key;
+      const item = snapshot.val();
+      const linha = container.querySelector(`[data-id="${id}"]`);
+      if (linha) {
         if (item.tipo === "texto") {
-          const input = document.createElement("input");
-          input.type = "text";
-          input.value = item.valor || "";
-          input.oninput = e => notasRef.child(id).update({ valor: e.target.value });
-          div.appendChild(input);
+          linha.querySelector("input").value = item.valor || "";
         } else if (item.tipo === "caixa") {
-          const check = document.createElement("input");
-          check.type = "checkbox";
-          check.checked = item.marcado || false;
-          check.onchange = e => notasRef.child(id).update({ marcado: e.target.checked });
-
-          const input = document.createElement("input");
-          input.type = "text";
-          input.value = item.valor || "";
-          input.oninput = e => notasRef.child(id).update({ valor: e.target.value });
-
-          div.appendChild(check);
-          div.appendChild(input);
+          linha.querySelector("input[type=checkbox]").checked = item.marcado || false;
+          linha.querySelector("input[type=text]").value = item.valor || "";
         }
-
-        container.appendChild(div);
-      });
+      }
     });
 
     // Fonte em tempo real
@@ -157,7 +178,6 @@
         document.getElementById("tamanho").value = f.tamanho;
       }
     });
-
   </script>
 </body>
 </html>
