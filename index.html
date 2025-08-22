@@ -160,10 +160,13 @@ function criarBlocoDOM(id, data){
     ensureLinhaVaziaNoFim();
   });
 
+  // **CORREÇÃO BACKSPACE PARA CHECKBOX**
   bloco.addEventListener('keydown', (e) => {
-    if(e.key === 'Backspace' && bloco.innerText.trim() === ''){
-      e.preventDefault();
-      remove(ref(db, `salas/${sala}/blocos/${id}`));
+    if(e.key === 'Backspace'){
+      if(bloco.innerText.trim() === '' || (linha.dataset.tipo === 'caixa' && bloco.innerText.trim() === '')){
+        e.preventDefault();
+        remove(ref(db, `salas/${sala}/blocos/${id}`));
+      }
     }
   });
 
@@ -218,7 +221,7 @@ editor.addEventListener('pointerdown', (e)=>{
   }
 });
 
-// **COLAGEM DE MÚLTIPLAS LINHAS**
+// COLAGEM DE MÚLTIPLAS LINHAS COM CHECKBOX
 editor.addEventListener('paste', (e)=>{
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
@@ -290,5 +293,3 @@ onValue(blocosRef, (snap)=>{
   </select>
 </div>
 <div id="editor" aria-label="Área de edição – toque para digitar"></div>
-</body>
-</html>
