@@ -3,44 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <title>Bloco de Notas</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 10px;
       background: #f8f9fa;
     }
+
     #controls {
-      margin-bottom: 15px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
+
     button, select {
-      margin: 5px;
-      padding: 8px;
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #fff;
     }
+
     #notas {
       background: white;
-      padding: 15px;
+      padding: 12px;
       border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
       min-height: 200px;
     }
+
     .linha {
-      margin: 6px 0;
+      margin: 10px 0;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
-    /* Estilo "bloco de notas" */
+
+    /* Campo de texto estilo "bloco de notas" */
     .linha input[type="text"] {
       flex: 1;
-      padding: 2px 4px;
+      padding: 4px;
       border: none;
-      border-bottom: 1px dashed transparent; /* aparece só ao focar */
+      border-bottom: 1px dashed transparent;
       outline: none;
       background: transparent;
+      font: inherit;
+      font-size: 18px; /* maior para celular */
     }
+
     .linha input[type="text"]:focus {
       border-bottom: 1px dashed #aaa;
+    }
+
+    /* Checkbox maior para toque */
+    .linha input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
     }
   </style>
 
@@ -68,26 +89,38 @@
 
     const container = document.getElementById("notas");
 
+    // Adicionar texto
     window.adicionarTexto = () => {
       const id = Date.now();
       set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "texto", valor: "" });
     };
 
+    // Adicionar caixinha
     window.adicionarCaixa = () => {
       const id = Date.now();
       set(ref(db, `salas/${sala}/notas/${id}`), { tipo: "caixa", valor: "", marcado: false });
     };
 
+    // Atualizar fonte
     window.atualizarFonte = () => {
       const fonte = document.getElementById("fonte").value;
       const tamanho = document.getElementById("tamanho").value;
       set(fonteRef, { fonte, tamanho });
     };
 
+    // Criar linha
     function criarLinha(id, item) {
       const div = document.createElement("div");
       div.className = "linha";
       div.dataset.id = id;
+
+      function excluirSeVazio(input) {
+        input.addEventListener("keydown", e => {
+          if (e.key === "Backspace" && input.value === "") {
+            remove(ref(db, `salas/${sala}/notas/${id}`));
+          }
+        });
+      }
 
       if (item.tipo === "texto") {
         const input = document.createElement("input");
@@ -96,6 +129,7 @@
         input.addEventListener("input", e => {
           update(ref(db, `salas/${sala}/notas/${id}`), { valor: e.target.value });
         });
+        excluirSeVazio(input);
         div.appendChild(input);
       } else if (item.tipo === "caixa") {
         const check = document.createElement("input");
@@ -111,6 +145,7 @@
         input.addEventListener("input", e => {
           update(ref(db, `salas/${sala}/notas/${id}`), { valor: e.target.value });
         });
+        excluirSeVazio(input);
 
         div.appendChild(check);
         div.appendChild(input);
@@ -119,6 +154,7 @@
       return div;
     }
 
+    // Firebase listeners
     onChildAdded(notasRef, snapshot => {
       const id = snapshot.key;
       const item = snapshot.val();
@@ -140,6 +176,7 @@
       }
     });
 
+    // Atualizar fonte/tamanho em tempo real
     onValue(fonteRef, snap => {
       const f = snap.val();
       if (f) {
@@ -155,26 +192,22 @@
   <h2>📝 Bloco de Notas</h2>
 
   <div id="controls">
-    <button onclick="adicionarTexto()">Adicionar Texto</button>
-    <button onclick="adicionarCaixa()">Adicionar Caixinha</button>
+    <button onclick="adicionarTexto()">+ Texto</button>
+    <button onclick="adicionarCaixa()">+ Caixinha</button>
 
-    <label>Fonte:
-      <select id="fonte" onchange="atualizarFonte()">
-        <option value="Arial">Arial</option>
-        <option value="Verdana">Verdana</option>
-        <option value="Courier New">Courier</option>
-        <option value="Times New Roman">Times</option>
-      </select>
-    </label>
+    <select id="fonte" onchange="atualizarFonte()">
+      <option value="Arial">Arial</option>
+      <option value="Verdana">Verdana</option>
+      <option value="Courier New">Courier</option>
+      <option value="Times New Roman">Times</option>
+    </select>
 
-    <label>Tamanho:
-      <select id="tamanho" onchange="atualizarFonte()">
-        <option value="14px">14px</option>
-        <option value="18px" selected>18px</option>
-        <option value="24px">24px</option>
-        <option value="32px">32px</option>
-      </select>
-    </label>
+    <select id="tamanho" onchange="atualizarFonte()">
+      <option value="14px">14px</option>
+      <option value="18px" selected>18px</option>
+      <option value="24px">24px</option>
+      <option value="32px">32px</option>
+    </select>
   </div>
 
   <div id="notas"></div>
