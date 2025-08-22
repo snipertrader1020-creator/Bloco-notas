@@ -1,218 +1,142 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Controle de Estoque</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background-color: #fff;
       margin: 0;
       padding: 0;
-      background: var(--bg-color, #f4f4f4);
-      color: var(--text-color, #333);
-      transition: background 0.3s, color 0.3s;
     }
 
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 15px;
-      background: var(--primary-color, #4b0082);
+      background: #4b006e;
+      padding: 10px;
       color: white;
     }
 
     header img {
       height: 40px;
-      width: auto;
-      border-radius: 6px;
-    }
-
-    header h1 {
-      font-size: 18px;
-      margin: 0;
-      flex: 1;
-      text-align: center;
     }
 
     .toolbar {
       display: flex;
-      gap: 6px;
+      gap: 5px;
       padding: 8px;
-      justify-content: center;
-      background: white;
+      background: #f8f8f8;
       border-bottom: 1px solid #ddd;
     }
 
     .toolbar select, .toolbar button {
-      padding: 6px 10px;
-      border-radius: 6px;
+      padding: 6px;
+      border-radius: 5px;
       border: 1px solid #ccc;
-      font-size: 14px;
     }
 
-    .toolbar button {
-      background: var(--primary-color, #4b0082);
+    h2 {
+      margin: 12px;
+      font-size: 20px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 12px;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0; /* <<< reduzi o espaço entre as linhas */
+      border-bottom: 1px solid #eee;
+      font-size: 16px;
+    }
+
+    li:last-child {
+      border-bottom: none;
+    }
+
+    .bg-btn {
+      background: #4b006e;
       color: white;
       border: none;
       cursor: pointer;
     }
 
-    .section {
-      padding: 12px;
-    }
-
-    h2 {
-      font-size: 18px;
-      margin-bottom: 6px;
-    }
-
-    .item {
-      display: flex;
-      align-items: center;
-      margin: 2px 0; /* espaço reduzido entre linhas */
-    }
-
-    .item input[type="checkbox"] {
-      margin-right: 6px;
-      transform: scale(1.2);
-    }
-
-    .editable {
-      flex: 1;
-      border: none;
-      background: transparent;
-      font-size: var(--font-size, 16px);
-      font-family: var(--font-family, Arial);
-      line-height: 1.3; /* altura compacta */
-    }
-
-    .editable:focus {
-      outline: none;
-      background: #f1f1f1;
+    .bg-btn:hover {
+      opacity: 0.8;
     }
   </style>
 </head>
 <body>
   <header>
-    <img src="logo.png" alt="Logo" id="logo">
-    <h1>Controle de Estoque</h1>
+    <img src="logo.png" alt="Logo" />  <!-- Substitua por sua logo -->
+    <h1 style="font-size:18px;">Controle de Estoque</h1>
   </header>
 
   <div class="toolbar">
-    <select id="fontSelect">
+    <select id="fontFamily">
       <option value="Arial">Arial</option>
       <option value="Verdana">Verdana</option>
-      <option value="Times New Roman">Times New Roman</option>
-      <option value="Courier New">Courier New</option>
+      <option value="Tahoma">Tahoma</option>
     </select>
 
-    <select id="sizeSelect">
+    <select id="fontSize">
       <option value="14px">14px</option>
       <option value="16px" selected>16px</option>
       <option value="18px">18px</option>
-      <option value="20px">20px</option>
     </select>
 
-    <button onclick="toggleTheme()">Mudar Cor</button>
+    <button class="bg-btn" onclick="mudarCor()">Trocar Fundo</button>
   </div>
 
-  <div class="section">
-    <h2>Recheios</h2>
-    <div id="itemList"></div>
-  </div>
+  <h2>Recheios</h2>
+  <ul id="lista">
+    <li><input type="checkbox"> Granola</li>
+    <li><input type="checkbox"> Paçoca</li>
+    <li><input type="checkbox"> Leite em pó</li>
+    <li><input type="checkbox"> Aveia</li>
+    <li><input type="checkbox"> Marshmallow</li>
+    <li><input type="checkbox"> Gotas de chocolate</li>
+    <li><input type="checkbox"> Amendoim</li>
+    <li><input type="checkbox"> Chocobool</li>
+    <li><input type="checkbox"> Sucrilhos</li>
+    <li><input type="checkbox"> Chocopowerbool</li>
+    <li><input type="checkbox"> Jujuba</li>
+    <li><input type="checkbox"> Granulado chocolate</li>
+    <li><input type="checkbox"> Granulado colorido</li>
+    <li><input type="checkbox"> Farinha láctea</li>
+    <li><input type="checkbox"> Neston</li>
+    <li><input type="checkbox"> Fruit rings</li>
+    <li><input type="checkbox"> Flocos crocantes</li>
+  </ul>
 
-  <script type="module">
-    // 🔹 Configuração Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, set, onValue, push, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+  <script>
+    const lista = document.getElementById("lista");
+    const fontFamilySelect = document.getElementById("fontFamily");
+    const fontSizeSelect = document.getElementById("fontSize");
 
-    const firebaseConfig = {
-      apiKey: "SUA_API_KEY",
-      authDomain: "SUA_AUTH_DOMAIN",
-      databaseURL: "SUA_DB_URL",
-      projectId: "SUA_PROJECT_ID",
-      storageBucket: "SUA_STORAGE",
-      messagingSenderId: "SENDER_ID",
-      appId: "APP_ID"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const itemRef = ref(db, "itens");
-
-    const itemList = document.getElementById("itemList");
-    const fontSelect = document.getElementById("fontSelect");
-    const sizeSelect = document.getElementById("sizeSelect");
-
-    // 🔹 Renderiza os itens da lista
-    onValue(itemRef, (snapshot) => {
-      itemList.innerHTML = "";
-      snapshot.forEach((childSnapshot) => {
-        const item = childSnapshot.val();
-        const itemKey = childSnapshot.key;
-
-        const div = document.createElement("div");
-        div.className = "item";
-
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = item.checked || false;
-        checkbox.onchange = () => {
-          set(ref(db, "itens/" + itemKey), {
-            text: item.text,
-            checked: checkbox.checked
-          });
-        };
-
-        const span = document.createElement("div");
-        span.className = "editable";
-        span.contentEditable = "true";
-        span.textContent = item.text;
-        span.style.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-family");
-        span.style.fontSize = getComputedStyle(document.documentElement).getPropertyValue("--font-size");
-
-        // Atualiza texto em tempo real
-        span.oninput = () => {
-          set(ref(db, "itens/" + itemKey), {
-            text: span.textContent,
-            checked: checkbox.checked
-          });
-        };
-
-        div.appendChild(checkbox);
-        div.appendChild(span);
-        itemList.appendChild(div);
-      });
+    fontFamilySelect.addEventListener("change", () => {
+      lista.style.fontFamily = fontFamilySelect.value;
     });
 
-    // 🔹 Controle de fontes
-    fontSelect.onchange = () => {
-      document.documentElement.style.setProperty("--font-family", fontSelect.value);
-    };
-    sizeSelect.onchange = () => {
-      document.documentElement.style.setProperty("--font-size", sizeSelect.value);
-    };
+    fontSizeSelect.addEventListener("change", () => {
+      lista.style.fontSize = fontSizeSelect.value;
+    });
 
-    // 🔹 Alternador de cores
-    let themeIndex = 0;
-    const themes = [
-      { "--primary-color": "#4b0082", "--bg-color": "#f4f4f4", "--text-color": "#333" }, // Roxo
-      { "--primary-color": "#228B22", "--bg-color": "#e9fbe9", "--text-color": "#111" }, // Verde
-      { "--primary-color": "#333", "--bg-color": "#fff", "--text-color": "#000" }        // Branco
-    ];
-
-    function toggleTheme() {
-      themeIndex = (themeIndex + 1) % themes.length;
-      const theme = themes[themeIndex];
-      for (const key in theme) {
-        document.documentElement.style.setProperty(key, theme[key]);
-      }
+    let cores = ["#fff", "#f0f0f0", "#e6ffe6", "#e6f0ff", "#fce6ff"];
+    let indice = 0;
+    function mudarCor() {
+      indice = (indice + 1) % cores.length;
+      document.body.style.backgroundColor = cores[indice];
     }
-    window.toggleTheme = toggleTheme;
   </script>
 </body>
 </html>
