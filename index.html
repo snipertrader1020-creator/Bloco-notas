@@ -160,12 +160,18 @@ function criarBlocoDOM(id, data){
     ensureLinhaVaziaNoFim();
   });
 
-  // **CORREÇÃO BACKSPACE PARA CHECKBOX**
   bloco.addEventListener('keydown', (e) => {
     if(e.key === 'Backspace'){
-      if(bloco.innerText.trim() === '' || (linha.dataset.tipo === 'caixa' && bloco.innerText.trim() === '')){
-        e.preventDefault();
-        remove(ref(db, `salas/${sala}/blocos/${id}`));
+      const sel = window.getSelection();
+      if(sel.rangeCount > 0){
+        const range = sel.getRangeAt(0);
+        if(range.startOffset === 0 && bloco.innerText.trim() === ''){
+          e.preventDefault();
+          remove(ref(db, `salas/${sala}/blocos/${id}`));
+          const linhas = [...editor.querySelectorAll('.linha')];
+          const idx = linhas.findIndex(l => l.dataset.id === id);
+          if(idx > 0) linhas[idx-1].querySelector('.bloco').focus();
+        }
       }
     }
   });
@@ -229,7 +235,7 @@ editor.addEventListener('paste', (e)=>{
   linhas.forEach(l=> criarLinhaBD(l, 'caixa'));
 });
 
-// toolbar
+// Toolbar
 window.aplicarFonte = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte: fonteSel.value }); }
 window.aplicarTamanho = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { tamanho: tamSel.value }); }
 window.toggleCheckbox = function(){
@@ -238,15 +244,6 @@ window.toggleCheckbox = function(){
   if(!node) return;
   const novoTipo = (node.dataset.tipo === 'texto') ? 'caixa' : 'texto';
   update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
-}
-window.toggleFundo = function(){
-  const fundos = ['#fff','#f6f7f9','#e8dff5'];
-  const atual = window.getComputedStyle(editor).backgroundColor;
-  const rgb = atual.match(/\d+/g);
-  let hex = '#ffffff';
-  if(rgb) hex = "#"+rgb.map(x=>parseInt(x).toString(16).padStart(2,'0')).join('');
-  let i = fundos.indexOf(hex.toLowerCase());
-  editor.style.background = fundos[(i+1)%fundos.length];
 }
 
 // Firebase listeners
@@ -275,7 +272,6 @@ onValue(blocosRef, (snap)=>{
 </header>
 <div id="toolbar">
   <button id="toggleCheck" class="primary" onclick="toggleCheckbox()">Checkbox</button>
-  <button onclick="toggleFundo()">Fundo</button>
   <select id="fonte" onchange="aplicarFonte()">
     <option value="Arial">Arial</option>
     <option value="Verdana">Verdana</option>
@@ -293,3 +289,5 @@ onValue(blocosRef, (snap)=>{
   </select>
 </div>
 <div id="editor" aria-label="Área de edição – toque para digitar"></div>
+</body>
+</html>
