@@ -1,198 +1,122 @@
-<!DOCTYPE html><html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bloco de Notas em Tempo Real</title>
-  <style>
-    :root{
-      --bg:#0b1020; --panel:#121a33; --accent:#6ee7b7; --muted:#9aa4bf; --text:#e6ecff;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sans-serif}
-    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #1c2447;background:linear-gradient(180deg,#0e1430,#0a1026)}
-    header .left{display:flex;gap:10px;align-items:center}
-    .app-title{font-weight:700;font-size:18px}
-    .room{font-size:12px;color:var(--muted)}
-    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    select, input[type="number"], input[type="text"], button{background:#0f1630;color:var(--text);border:1px solid #22306a;border-radius:10px;padding:8px 10px;outline:none}
-    button{cursor:pointer}
-    button.primary{background:var(--accent);color:#05110d;border:none;font-weight:700}
-    main{display:grid;grid-template-columns:1fr 360px;gap:16px;padding:16px;max-width:1200px;margin:0 auto}
-    @media (max-width:900px){ main{grid-template-columns:1fr} }
-    .card{background:var(--panel);border:1px solid #1b2450;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .card h3{margin:0;padding:14px 16px;border-bottom:1px solid #1c2447;opacity:.9}
-    .card .body{padding:14px}#note{width:100%;min-height:320px;border:none;outline:none;background:#0d1530;color:var(--text);border-radius:12px;padding:14px;line-height:1.6;}
+// src/App.js
+import React, { useState, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, set, push, onValue, update } from "firebase/database";
 
-.checklist-item{display:flex;gap:10px;align-items:center;background:#0f1838;border:1px solid #26336b;border-radius:12px;padding:10px;margin-bottom:8px}
-.checklist-item input[type="checkbox"]{width:18px;height:18px}
-.checklist-item input[type="text"]{flex:1;border:none;background:transparent;color:var(--text);outline:none}
-.checklist-item .remove{border:none;background:#1b2450;color:#b6c0e8;border-radius:10px;padding:6px 10px}
-.checklist-empty{color:var(--muted);font-size:14px}
-.footer{padding:10px 16px;color:var(--muted);font-size:12px}
-.muted{color:var(--muted)}
+// Configuração Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
+  authDomain: "lista-de-itens-em-falta.firebaseapp.com",
+  databaseURL: "https://lista-de-itens-em-falta-default-rtdb.firebaseio.com",
+  projectId: "lista-de-itens-em-falta",
+  storageBucket: "lista-de-itens-em-falta.firebasestorage.app",
+  messagingSenderId: "178769313308",
+  appId: "1:178769313308:web:cdb4cdc520f8eeb23729d9",
+  measurementId: "G-MTRHXEFMP8"
+};
 
-  </style>
-</head>
-<body>
-  <header>
-    <div class="left">
-      <div class="app-title">📝 Bloco de Notas</div>
-      <div id="roomInfo" class="room"></div>
-    </div>
-    <div class="toolbar">
-      <label class="muted">Fonte
-        <select id="fontSelector">
-          <option>Inter</option>
-          <option>Arial</option>
-          <option>Verdana</option>
-          <option>Times New Roman</option>
-          <option>Courier New</option>
-        </select>
-      </label>
-      <label class="muted">Tamanho
-        <input id="fontSize" type="number" min="10" max="48" value="16" />
-      </label>
-      <button id="shareBtn" class="primary">Copiar link de sala</button>
-    </div>
-  </header>  <main>
-    <section class="card">
-      <h3>Nota</h3>
-      <div class="body">
-        <div id="note" contenteditable="true" spellcheck="false"></div>
-      </div>
-    </section><aside class="card">
-  <h3>Checklist</h3>
-  <div class="body">
-    <form id="addItemForm" autocomplete="off" style="display:flex;gap:8px;margin-bottom:10px">
-      <input id="newItemText" type="text" placeholder="Adicionar item…" />
-      <button class="primary" type="submit">Adicionar</button>
-    </form>
-    <div id="list"></div>
-    <div id="empty" class="checklist-empty">Nenhum item ainda.</div>
-  </div>
-</aside>
+// Inicializa Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  </main>  <div class="footer">Dica: compartilhe o link desta página para editar a mesma sala em tempo real em outro celular/computador.</div>  <script type="module">
-    // ====== CONFIGURAÇÃO DO FIREBASE ======
-    const firebaseConfig = {
-      apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
-      authDomain: "lista-de-itens-em-falta.firebaseapp.com",
-      databaseURL: "https://lista-de-itens-em-falta-default-rtdb.firebaseio.com",
-      projectId: "lista-de-itens-em-falta",
-      storageBucket: "lista-de-itens-em-falta.firebasestorage.app",
-      messagingSenderId: "178769313308",
-      appId: "1:178769313308:web:cdb4cdc520f8eeb23729d9",
-      measurementId: "G-MTRHXEFMP8"
-    };
+export default function App() {
+  const [items, setItems] = useState([]);
+  const [text, setText] = useState("");
+  const [isCheckbox, setIsCheckbox] = useState(false);
+  const [fontSize, setFontSize] = useState(18);
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    function getRoomId(){
-      let id = location.hash.replace('#','').trim();
-      if(!id){ id = Math.random().toString(36).slice(2,8); location.hash = id; }
-      return id;
-    }
-    const roomId = getRoomId();
-    const roomRef = doc(db, 'rooms', roomId);
-    document.getElementById('roomInfo').textContent = `Sala: ${roomId}`;
-
-    const noteEl = document.getElementById('note');
-    const listEl = document.getElementById('list');
-    const emptyEl = document.getElementById('empty');
-    const fontSel = document.getElementById('fontSelector');
-    const fontSize = document.getElementById('fontSize');
-
-    await signInAnonymously(auth).catch(console.error);
-    onAuthStateChanged(auth, (user)=>{ if(user) initRealtime(user.uid); });
-
-    let clientId = crypto.randomUUID();
-    let isApplyingRemote = false;
-
-    async function save(partial){
-      partial.updatedAt = serverTimestamp();
-      partial.lastBy = clientId;
-      await setDoc(roomRef, partial, { merge: true });
-    }
-
-    function renderList(items){
-      listEl.innerHTML = '';
-      const ids = Object.keys(items||{});
-      if(!ids.length){ emptyEl.style.display='block'; return; }
-      emptyEl.style.display='none';
-      ids.sort((a,b)=> (items[a].order||0) - (items[b].order||0));
-      for(const id of ids){
-        const it = items[id];
-        const row = document.createElement('div');
-        row.className = 'checklist-item';
-
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = !!it.checked;
-        cb.addEventListener('change', ()=> save({ [`checklist.${id}.checked`]: cb.checked }));
-
-        const txt = document.createElement('input');
-        txt.type = 'text';
-        txt.value = it.text||'';
-        txt.addEventListener('input', ()=> save({ [`checklist.${id}.text`]: txt.value }));
-
-        const rm = document.createElement('button');
-        rm.className='remove';
-        rm.textContent = 'Remover';
-        rm.addEventListener('click', ()=> save({ [`checklist.${id}`]: null }));
-
-        row.append(cb, txt, rm);
-        listEl.appendChild(row);
+  // Carregar lista do Firebase
+  useEffect(() => {
+    const itemsRef = ref(db, "lista");
+    onValue(itemsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setItems(Object.values(data));
+      } else {
+        setItems([]);
       }
-    }
+    });
+  }, []);
 
-    function initRealtime(){
-      onSnapshot(roomRef, (snap)=>{
-        const data = snap.data()||{};
-        if(data.lastBy === clientId) return;
-        isApplyingRemote = true;
-        try{
-          if(typeof data.text === 'string' && data.text !== noteEl.innerHTML){
-            noteEl.innerHTML = data.text;
-          }
-          if(data.font){ fontSel.value = data.font; noteEl.style.fontFamily = data.font; }
-          if(data.size){ fontSize.value = data.size; noteEl.style.fontSize = data.size + 'px'; }
-          if(data.checklist){ renderList(data.checklist); } else { renderList({}); }
-        } finally {
-          isApplyingRemote = false;
-        }
-      });
+  // Adicionar item
+  const addItem = () => {
+    if (!text.trim()) return;
+    const newItem = {
+      id: Date.now(),
+      text,
+      isCheckbox,
+      checked: false,
+      fontSize,
+    };
+    const newRef = push(ref(db, "lista"));
+    set(newRef, newItem);
+    setText("");
+  };
 
-      let t;
-      noteEl.addEventListener('input', ()=>{
-        if(isApplyingRemote) return;
-        clearTimeout(t);
-        t = setTimeout(()=> save({ text: noteEl.innerHTML }), 250);
-      });
+  // Alternar check
+  const toggleCheck = (itemId, checked) => {
+    const itemRef = ref(db, "lista/" + itemId);
+    update(itemRef, { checked: !checked });
+  };
 
-      fontSel.addEventListener('change', ()=>{ noteEl.style.fontFamily = fontSel.value; save({ font: fontSel.value }); });
-      fontSize.addEventListener('change', ()=>{ noteEl.style.fontSize = fontSize.value + 'px'; save({ size: Number(fontSize.value) }); });
+  return (
+    <div style={{ padding: 20, background: "#f9f9f9", minHeight: "100vh" }}>
+      <h2>📝 Lista de Compras</h2>
 
-      document.getElementById('addItemForm').addEventListener('submit', (e)=>{
-        e.preventDefault();
-        const val = document.getElementById('newItemText').value.trim();
-        if(!val) return;
-        const id = Math.random().toString(36).slice(2,9);
-        const order = Date.now();
-        save({ [`checklist.${id}`]: { text: val, checked:false, order } });
-        document.getElementById('newItemText').value='';
-      });
+      {/* Entrada de texto */}
+      <input
+        type="text"
+        placeholder="Digite um item ou descrição..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        style={{ padding: 8, width: "80%", fontSize: 16 }}
+      />
+      <button onClick={addItem} style={{ marginLeft: 10, padding: 8 }}>
+        Adicionar
+      </button>
 
-      document.getElementById('shareBtn').addEventListener('click', async ()=>{
-        const url = location.href;
-        try{ await navigator.clipboard.writeText(url); alert('Link copiado! Abra em outro dispositivo para editar a mesma sala.'); }
-        catch{ prompt('Copie o link:', url); }
-      });
-    }
-  </script></body>
-</html>
+      {/* Opção normal/checkbox */}
+      <div style={{ marginTop: 10 }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={isCheckbox}
+            onChange={(e) => setIsCheckbox(e.target.checked)}
+          />{" "}
+          Criar com caixinha
+        </label>
+      </div>
+
+      {/* Controle de fonte */}
+      <div style={{ marginTop: 10 }}>
+        <label>Tamanho da fonte: </label>
+        <input
+          type="number"
+          value={fontSize}
+          onChange={(e) => setFontSize(Number(e.target.value))}
+          style={{ width: 60 }}
+        />
+      </div>
+
+      {/* Lista de itens */}
+      <ul style={{ marginTop: 20, listStyle: "none", padding: 0 }}>
+        {items.map((item) => (
+          <li key={item.id} style={{ fontSize: item.fontSize, marginBottom: 8 }}>
+            {item.isCheckbox ? (
+              <label>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => toggleCheck(item.id, item.checked)}
+                />{" "}
+                {item.text}
+              </label>
+            ) : (
+              <span>{item.text}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
