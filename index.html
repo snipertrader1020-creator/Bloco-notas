@@ -99,6 +99,40 @@ header h1{
   color:#9aa0a6;
 }
 .apagar{ display:none; }
+
+/* >>> Estilos do "Esgotado" (fundo pincelado vermelho clarinho) <<< */
+.esgotado-wrapper{
+  display:inline-flex; align-items:center; gap:6px;
+  margin-left:8px; margin-top:4px; /* harmoniza com align-items:flex-start */
+}
+.esgotado-wrapper input[type="checkbox"]{
+  width:18px; height:18px; flex:0 0 auto; accent-color: var(--verde);
+}
+.esgotado-label{
+  display:none; /* aparece só quando marcado */
+  position:relative;
+  padding:2px 8px;
+  border-radius:8px;
+  background:#ffcccc; /* vermelho clarinho */
+  color:#ffffff;
+  font-size:13px;
+  font-weight:700;
+  line-height:1;
+  user-select:none;
+  overflow:hidden;
+}
+.esgotado-label::before{
+  content:"";
+  position:absolute; inset:0;
+  background:repeating-linear-gradient(
+    -45deg,
+    rgba(255,120,120,0.45) 0 6px,
+    transparent 6px 12px
+  );
+  pointer-events:none;
+  mix-blend-mode:multiply;
+}
+
 @media (max-width:480px){
   header h1{ font-size:24px; }
   #toolbar select{ min-width:110px; }
@@ -129,6 +163,44 @@ const fonteSel = document.getElementById('fonte');
 const tamSel   = document.getElementById('tamanho');
 let focoId = null;
 const novaChave = () => push(blocosRef).key;
+
+/* === util: cria/adiciona o UI do "Esgotado" e liga ao Firebase === */
+function ensureEsgotadoUI(linha, id, esgotadoEstado){
+  let wrap = linha.querySelector('.esgotado-wrapper');
+  if(!wrap){
+    wrap = document.createElement('div');
+    wrap.className = 'esgotado-wrapper';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'esgotado-cb';
+
+    const label = document.createElement('span');
+    label.className = 'esgotado-label';
+    label.textContent = 'esgotado';
+
+    cb.addEventListener('change', ()=>{
+      update(ref(db, `salas/${sala}/blocos/${id}`), { esgotado: cb.checked });
+      label.style.display = cb.checked ? 'inline-block' : 'none';
+    });
+
+    wrap.appendChild(cb);
+    wrap.appendChild(label);
+    linha.appendChild(wrap);
+  }
+  // aplica estado atual
+  const cb = wrap.querySelector('.esgotado-cb');
+  const label = wrap.querySelector('.esgotado-label');
+  cb.checked = !!esgotadoEstado;
+  label.style.display = cb.checked ? 'inline-block' : 'none';
+
+  // visibilidade conforme tipo
+  if(linha.dataset.tipo === 'texto'){
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = 'inline-flex';
+  }
+}
 
 function criarBlocoDOM(id, data){
   const linha = document.createElement('div');
@@ -183,6 +255,12 @@ function criarBlocoDOM(id, data){
 
   linha.appendChild(check);
   linha.appendChild(bloco);
+
+  /* >>> acrescenta o UI do "esgotado" para linhas com checkbox <<< */
+  if(linha.dataset.tipo !== 'texto'){
+    ensureEsgotadoUI(linha, id, data.esgotado);
+  }
+
   return linha;
 }
 
@@ -191,13 +269,16 @@ function renderChange(id, data){
   const node = editor.querySelector(`.linha[data-id="${id}"]`);
   if(!node) return renderAdd(id, data);
   node.dataset.tipo = data.tipo || 'texto';
-  const check = node.querySelector('input[type="checkbox"]');
+  const check = node.querySelector('input[type="checkbox"]'); // pega o 1º: o principal
   const bloco = node.querySelector('.bloco');
   check.style.display = (node.dataset.tipo === 'texto') ? 'none' : '';
   if(document.activeElement !== bloco) bloco.innerText = data.conteudo || '';
   bloco.style.fontFamily = data.fonte || 'Arial';
   bloco.style.fontSize   = data.tamanho || '18px';
   check.checked = !!data.marcado;
+
+  // garante e sincroniza o "esgotado"
+  ensureEsgotadoUI(node, id, data.esgotado);
 }
 function renderRemove(id){
   const node = editor.querySelector(`.linha[data-id="${id}"]`);
@@ -215,7 +296,7 @@ function ensureLinhaVaziaNoFim(){
 
 function criarLinhaBD(conteudo='', tipo='texto'){
   const id = novaChave();
-  const data = { tipo, conteudo, marcado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
+  const data = { tipo, conteudo, marcado:false, esgotado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
   set(ref(db, `salas/${sala}/blocos/${id}`), data);
   return id;
 }
@@ -264,9 +345,12 @@ onValue(blocosRef, (snap)=>{
   requestAnimationFrame(()=>{
     editor.querySelectorAll('.linha').forEach(l=>{
       const tipo = l.dataset.tipo;
-      const chk = l.querySelector('input[type="checkbox"]');
+      const chk = l.querySelector('input[type="checkbox"]'); // principal
       if(!chk) return;
       chk.style.display = (tipo === 'texto') ? 'none' : '';
+      // mostra/oculta o UI do esgotado conforme o tipo
+      const wrap = l.querySelector('.esgotado-wrapper');
+      if(wrap) wrap.style.display = (tipo === 'texto') ? 'none' : 'inline-flex';
     });
   });
 });
