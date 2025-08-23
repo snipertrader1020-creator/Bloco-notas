@@ -1,293 +1,109 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<title>Controle de Estoque</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<style>
-:root{
-  --roxo:#641b6b;
-  --roxo-escuro:#4a0f52;
-  --verde:#45b043;
-  --cinza:#f6f7f9;
-  --borda:#e6e7ea;
-  --texto:#212529;
-}
-*{box-sizing:border-box}
-body{
-  margin:0;
-  background:var(--cinza);
-  color:var(--texto);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-tap-highlight-color: transparent;
-}
-header{
-  background: linear-gradient(180deg, var(--roxo), var(--roxo-escuro));
-  color:#fff;
-  padding:12px 10px 8px;
-  text-align:center;
-}
-header .brand{
-  display:flex; align-items:center; justify-content:center; gap:8px;
-}
-header img.logo{
-  height:40px; width:auto; object-fit:contain;
-  border-radius:10px;
-  background:#fff;
-  padding:4px 6px;
-}
-header h1{
-  margin:0;
-  font-size:18px;
-  font-weight:700;
-  letter-spacing:.3px;
-}
-#toolbar{
-  background:#fff;
-  padding:8px;
-  display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
-  border-bottom:1px solid var(--borda);
-  position:sticky; top:0; z-index:5;
-}
-#toolbar button, #toolbar select{
-  padding:6px 10px;
-  font-size:14px;
-  border-radius:10px;
-  border:1px solid var(--borda);
-  background:#fff;
-}
-#toolbar button.primary{
-  background:var(--verde);
-  color:#fff; border-color:var(--verde);
-  font-weight:600;
-}
-#editor{
-  background:#fff;
-  margin:10px;
-  border-radius:14px;
-  box-shadow: 0 6px 18px rgba(0,0,0,.06);
-  border:1px solid var(--borda);
-  overflow:hidden;
-  transition: background 0.3s;
-}
-.linha{
-  display:flex; align-items:flex-start; gap:6px;
-  padding:6px 10px;
-  border-bottom:1px dashed #ececf0;
-}
-.linha:last-child{ border-bottom:none; }
-.linha input[type="checkbox"]{
-  width:18px; height:18px; margin-top:6px; flex:0 0 auto;
-  accent-color: var(--verde);
-}
-.linha[data-tipo="texto"] input[type="checkbox"]{ display:none; }
-.bloco{
-  flex:1 1 auto;
-  min-height:24px;
-  outline:none;
-  border:none;
-  background:transparent;
-  font-size:16px;
-  line-height:1.35;
-  padding:2px 2px;
-  word-break:break-word;
-}
-.linha.focused{ background:#fbfbfe; }
-.bloco:empty:before{
-  content: attr(data-placeholder);
-  color:#9aa0a6;
-}
-.apagar{ display:none; }
-@media (max-width:480px){
-  header h1{ font-size:16px; }
-  #toolbar select{ min-width:110px; }
-  #toolbar button, #toolbar select{ font-size:14px; padding:6px 8px; }
-}
-</style>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, onChildAdded, onChildChanged, onChildRemoved, set, update, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
-  authDomain: "lista-de-itens-em-falta.firebaseapp.com",
-  databaseURL: "https://lista-de-itens-em-falta-default-rtdb.firebaseio.com",
-  projectId: "lista-de-itens-em-falta",
-  storageBucket: "lista-de-itens-em-falta.appspot.com",
-  messagingSenderId: "178769313308",
-  appId: "1:178769313308:web:cdb4cdc520f8eeb23729d9",
-  measurementId: "G-MTRHXEFMP8"
-};
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-const sala = location.hash.replace("#","") || "default";
-const blocosRef = ref(db, `salas/${sala}/blocos`);
-const editor = document.getElementById('editor');
-const fonteSel = document.getElementById('fonte');
-const tamSel   = document.getElementById('tamanho');
-let focoId = null;
-const novaChave = () => push(blocosRef).key;
-
-function criarBlocoDOM(id, data){
-  const linha = document.createElement('div');
-  linha.className = 'linha';
-  linha.dataset.id = id;
-  linha.dataset.tipo = data.tipo || 'texto';
-
-  const check = document.createElement('input');
-  check.type = 'checkbox';
-  check.checked = !!data.marcado;
-
-  const bloco = document.createElement('div');
-  bloco.className = 'bloco';
-  bloco.contentEditable = "true";
-  bloco.dataset.placeholder = "Toque e escreva...";
-  bloco.innerText = (data.conteudo || "");
-  bloco.style.fontFamily = data.fonte || 'Arial';
-  bloco.style.fontSize   = data.tamanho || '18px';
-
-  bloco.addEventListener('focus', () => {
-    focoId = id;
-    document.querySelectorAll('.linha').forEach(l=>l.classList.remove('focused'));
-    linha.classList.add('focused');
-    fonteSel.value = (data.fonte || 'Arial');
-    tamSel.value   = (data.tamanho || '18px');
-  });
-
-  bloco.addEventListener('input', () => {
-    update(ref(db, `salas/${sala}/blocos/${id}`), { conteudo: bloco.innerText });
-    ensureLinhaVaziaNoFim();
-  });
-
-  bloco.addEventListener('keydown', (e) => {
-    if(e.key === 'Backspace'){
-      const sel = window.getSelection();
-      if(sel.rangeCount > 0){
-        const range = sel.getRangeAt(0);
-        if(range.startOffset === 0 && bloco.innerText.trim() === ''){
-          e.preventDefault();
-          remove(ref(db, `salas/${sala}/blocos/${id}`));
-          const linhas = [...editor.querySelectorAll('.linha')];
-          const idx = linhas.findIndex(l => l.dataset.id === id);
-          if(idx > 0) linhas[idx-1].querySelector('.bloco').focus();
-        }
-      }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloco de Notas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: white;
+      margin: 0;
+      padding: 0;
+      text-align: center;
     }
-  });
-
-  check.addEventListener('change', () => {
-    update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: check.checked });
-  });
-
-  linha.appendChild(check);
-  linha.appendChild(bloco);
-  return linha;
-}
-
-function renderAdd(id, data){ editor.appendChild(criarBlocoDOM(id, data)); }
-function renderChange(id, data){
-  const node = editor.querySelector(`.linha[data-id="${id}"]`);
-  if(!node) return renderAdd(id, data);
-  node.dataset.tipo = data.tipo || 'texto';
-  const check = node.querySelector('input[type="checkbox"]');
-  const bloco = node.querySelector('.bloco');
-  check.style.display = (node.dataset.tipo === 'texto') ? 'none' : '';
-  if(document.activeElement !== bloco) bloco.innerText = data.conteudo || '';
-  bloco.style.fontFamily = data.fonte || 'Arial';
-  bloco.style.fontSize   = data.tamanho || '18px';
-  check.checked = !!data.marcado;
-}
-function renderRemove(id){
-  const node = editor.querySelector(`.linha[data-id="${id}"]`);
-  if(node) node.remove();
-  ensureLinhaVaziaNoFim();
-}
-
-function ensureLinhaVaziaNoFim(){
-  const linhas = [...editor.querySelectorAll('.linha')];
-  const ultima = linhas[linhas.length-1];
-  if(!ultima){ criarLinhaBD(); return; }
-  const blocoUlt = ultima.querySelector('.bloco');
-  if(blocoUlt && blocoUlt.innerText.trim() !== '') criarLinhaBD();
-}
-
-function criarLinhaBD(conteudo='', tipo='texto'){
-  const id = novaChave();
-  const data = { tipo, conteudo, marcado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
-  set(ref(db, `salas/${sala}/blocos/${id}`), data);
-  return id;
-}
-
-editor.addEventListener('pointerdown', (e)=>{
-  if(e.target.id === 'editor'){
-    ensureLinhaVaziaNoFim();
-    const ultima = editor.querySelector('.linha:last-child .bloco');
-    if(ultima) ultima.focus();
-  }
-});
-
-// COLAGEM DE MÚLTIPLAS LINHAS COM CHECKBOX
-editor.addEventListener('paste', (e)=>{
-  e.preventDefault();
-  const text = (e.clipboardData || window.clipboardData).getData('text');
-  const linhas = text.split(/\r?\n/).filter(l=>l.trim()!=='');
-  linhas.forEach(l=> criarLinhaBD(l, 'caixa'));
-});
-
-// Toolbar
-window.aplicarFonte = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte: fonteSel.value }); }
-window.aplicarTamanho = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { tamanho: tamSel.value }); }
-window.toggleCheckbox = function(){
-  if(!focoId) return;
-  const node = editor.querySelector(`.linha[data-id="${focoId}"]`);
-  if(!node) return;
-  const novoTipo = (node.dataset.tipo === 'texto') ? 'caixa' : 'texto';
-  update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
-}
-
-// Firebase listeners
-onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
-onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
-onChildRemoved(blocosRef, (snap)=> renderRemove(snap.key));
-onValue(blocosRef, (snap)=>{
-  if(!snap.exists()) criarLinhaBD();
-  requestAnimationFrame(()=>{
-    editor.querySelectorAll('.linha').forEach(l=>{
-      const tipo = l.dataset.tipo;
-      const chk = l.querySelector('input[type="checkbox"]');
-      if(!chk) return;
-      chk.style.display = (tipo === 'texto') ? 'none' : '';
-    });
-  });
-});
-</script>
+    header {
+      margin: 20px 0;
+    }
+    header img {
+      max-width: 180px; /* tamanho ajustável da logo */
+      height: auto;
+    }
+    #toggleBackground {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background-color: #6a1b9a;
+      color: white;
+    }
+    #toggleBackground:hover {
+      background-color: #4a148c;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      text-align: left;
+      padding: 20px;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+    }
+    .item input[type="text"] {
+      border: none;
+      border-bottom: 1px solid #ccc;
+      flex: 1;
+      font-size: 16px;
+      padding: 5px;
+      outline: none;
+    }
+    .item input[type="checkbox"] {
+      margin-right: 10px;
+    }
+  </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <img src="logo.png" alt="Açaí Delivery Pádua" class="logo" />
-    <h1>Controle de Estoque</h1>
-  </div>
-</header>
-<div id="toolbar">
-  <button id="toggleCheck" class="primary" onclick="toggleCheckbox()">Checkbox</button>
-  <select id="fonte" onchange="aplicarFonte()">
-    <option value="Arial">Arial</option>
-    <option value="Verdana">Verdana</option>
-    <option value="Courier New">Courier</option>
-    <option value="Times New Roman">Times</option>
-  </select>
-  <select id="tamanho" onchange="aplicarTamanho()">
-    <option value="14px">14px</option>
-    <option value="16px">16px</option>
-    <option value="18px" selected>18px</option>
-    <option value="22px">22px</option>
-    <option value="24px">24px</option>
-    <option value="28px">28px</option>
-    <option value="32px">32px</option>
-  </select>
-</div>
-<div id="editor" aria-label="Área de edição – toque para digitar"></div>
+  <header>
+    <img src="acailogo.png" alt="Logo Açaí Delivery Pádua">
+  </header>
+
+  <button id="toggleBackground">Mudar cor do fundo</button>
+
+  <div class="container" id="noteContainer"></div>
+
+  <script>
+    const noteContainer = document.getElementById('noteContainer');
+    const toggleBackgroundBtn = document.getElementById('toggleBackground');
+    let isPurple = false;
+
+    // Função para criar nova linha
+    function createItem(text = "", checked = false) {
+      const item = document.createElement("div");
+      item.className = "item";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = checked;
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = text;
+
+      // Deleta a linha se estiver vazia e pressionar Backspace
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Backspace" && input.value === "") {
+          e.preventDefault();
+          item.remove();
+        }
+      });
+
+      item.appendChild(checkbox);
+      item.appendChild(input);
+      noteContainer.appendChild(item);
+    }
+
+    // Cria a primeira linha
+    createItem();
+
+    // Alterna cor do fundo
+    toggleBackgroundBtn.addEventListener("click", () => {
+      document.body.style.backgroundColor = isPurple ? "white" : "#e1bee7";
+      isPurple = !isPurple;
+    });
+  </script>
 </body>
 </html>
