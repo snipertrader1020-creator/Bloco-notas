@@ -25,22 +25,29 @@ header{
   background: linear-gradient(180deg, var(--roxo), var(--roxo-escuro));
   color:#fff;
   padding:12px 10px 8px;
-  text-align:center;
+  text-align:left;
 }
 header .brand{
-  display:flex; align-items:center; justify-content:center; gap:8px;
+  display:flex; 
+  align-items:center;  /* centraliza verticalmente */
+  justify-content:flex-start; /* alinha ao canto esquerdo */
+  gap:12px; /* espaço entre logo e texto */
+  padding:12px 20px;
 }
 header img.logo{
-  height:40px; width:auto; object-fit:contain;
+  height:50px; 
+  width:auto; 
+  object-fit:contain;
   border-radius:10px;
   background:#fff;
   padding:4px 6px;
 }
 header h1{
   margin:0;
-  font-size:18px;
+  font-size:20px;
   font-weight:700;
   letter-spacing:.3px;
+  color:#fff;
 }
 #toolbar{
   background:#fff;
@@ -246,6 +253,14 @@ window.toggleCheckbox = function(){
   update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
 }
 
+// Botão mudar fundo
+let fundoAtual = 0;
+const coresFundo = ['#ffffff', '#f6f7f9', '#fffbf0', '#e0f7fa', '#fde0e0'];
+window.mudarFundo = function(){
+  fundoAtual = (fundoAtual + 1) % coresFundo.length;
+  document.getElementById('editor').style.background = coresFundo[fundoAtual];
+}
+
 // Firebase listeners
 onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
 onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
@@ -266,7 +281,7 @@ onValue(blocosRef, (snap)=>{
 <body>
 <header>
   <div class="brand">
-    <img src="logo.png" alt="Açaí Delivery Pádua" class="logo" />
+    <img src="acailogo.png" alt="Açaí Delivery Pádua" class="logo" />
     <h1>Controle de Estoque</h1>
   </div>
 </header>
@@ -287,6 +302,7 @@ onValue(blocosRef, (snap)=>{
     <option value="28px">28px</option>
     <option value="32px">32px</option>
   </select>
+  <button onclick="mudarFundo()">Mudar Fundo</button>
 </div>
 <div id="editor" aria-label="Área de edição – toque para digitar"></div>
 </body>
