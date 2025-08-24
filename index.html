@@ -93,7 +93,7 @@ header h1{
   line-height:1.35;
   padding:2px 2px;
   word-break:break-word;
-  white-space: pre-wrap;
+  white-space: pre-wrap; /* mantém quebras de linha */
 }
 .linha.focused{ background:#fbfbfe; }
 .bloco:empty:before{
@@ -178,7 +178,7 @@ const tamSel   = document.getElementById('tamanho');
 let focoId = null;
 const novaChave = () => push(blocosRef).key;
 
-// controle do Enter duplo
+// controle do Enter duplo (em ms)
 let ultimaTeclaEnter = 0;
 
 function ensureEsgotadoUI(linha, id, esgotadoEstado){
@@ -227,9 +227,11 @@ function criarBlocoDOM(id, data){
   linha.dataset.id = id;
   linha.dataset.tipo = data.tipo || 'texto';
   linha.dataset.ordem = data.ordem || 0;
+
   const check = document.createElement('input');
   check.type = 'checkbox';
   check.checked = !!data.marcado;
+
   const bloco = document.createElement('div');
   bloco.className = 'bloco';
   bloco.contentEditable = "true";
@@ -237,6 +239,7 @@ function criarBlocoDOM(id, data){
   bloco.innerText = (data.conteudo || "");
   bloco.style.fontFamily = data.fonte || 'Arial';
   bloco.style.fontSize   = data.tamanho || '18px';
+
   bloco.addEventListener('focus', () => {
     focoId = id;
     document.querySelectorAll('.linha').forEach(l=>l.classList.remove('focused'));
@@ -244,22 +247,45 @@ function criarBlocoDOM(id, data){
     fonteSel.value = (data.fonte || 'Arial');
     tamSel.value   = (data.tamanho || '18px');
   });
+
   bloco.addEventListener('input', () => {
     update(ref(db, `salas/${sala}/blocos/${id}`), { conteudo: bloco.innerText });
     ensureLinhaVaziaNoFim();
   });
 
-  /* === ENTER HÍBRIDO === */
+  /* === ENTER HÍBRIDO: 1x = quebra linha; 2x rápido = cria bloco logo abaixo === */
   bloco.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){
       const agora = Date.now();
-      if(agora - ultimaTeclaEnter < 400){ // 2 enters rápidos
+      if(agora - ultimaTeclaEnter < 400){ // 2 Enters rápidos
         e.preventDefault();
-        const novoId = criarLinhaBD('');
-        focoId = novoId;
+
+        const curr = linha;
+        const ordAtual = parseFloat(curr.dataset.ordem || "0");
+        const prox = curr.nextElementSibling;
+        let ordemNova;
+
+        if(prox){
+          const ordProx = parseFloat(prox.dataset.ordem || (ordAtual + 1));
+          // coloca no meio dos dois
+          ordemNova = (ordAtual + ordProx) / 2;
+          // se forem iguais, empurra um pouquinho
+          if(!isFinite(ordemNova) || ordemNova === ordAtual || ordemNova === ordProx){
+            ordemNova = ordAtual + 0.0001;
+          }
+        }else{
+          // se for a última linha, coloca depois
+          ordemNova = ordAtual + 1;
+        }
+
+        const novoTipo = curr.dataset.tipo || 'texto';
+        const novoId = criarLinhaBD('', novoTipo, ordemNova);
+        focoId = novoId; // será focado em renderAdd
       }
       ultimaTeclaEnter = agora;
+      // Enter simples não é prevenido -> quebra de linha normal
     }
+
     if(e.key === 'Backspace'){
       const sel = window.getSelection();
       if(sel.rangeCount > 0){
@@ -291,15 +317,24 @@ function criarBlocoDOM(id, data){
   return linha;
 }
 
-/* Inserção respeitando a ordem */
+/* Inserção respeitando a 'ordem' */
 function renderAdd(id, data){ 
   const linha = criarBlocoDOM(id, data);
   const linhas = [...editor.querySelectorAll('.linha')];
-  const pos = linhas.findIndex(l => parseInt(l.dataset.ordem||"0",10) > (data.ordem||0));
+
+  const pos = linhas.findIndex(l => parseFloat(l.dataset.ordem||"0") > (data.ordem||0));
   if(pos === -1){
     editor.appendChild(linha);
   } else {
     editor.insertBefore(linha, linhas[pos]);
+  }
+
+  // se foi criado a partir da ação do usuário, focar
+  if(id === focoId){
+    requestAnimationFrame(()=>{
+      const el = editor.querySelector(`.linha[data-id="${id}"] .bloco`);
+      if(el) el.focus();
+    });
   }
 }
 
@@ -308,6 +343,7 @@ function renderChange(id, data){
   if(!node) return renderAdd(id, data);
   node.dataset.tipo = data.tipo || 'texto';
   node.dataset.ordem = data.ordem || 0;
+
   const check = node.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
   const bloco = node.querySelector('.bloco');
   check.style.display = (node.dataset.tipo === 'texto') ? 'none' : '';
@@ -322,6 +358,8 @@ function renderRemove(id){
   if(node) node.remove();
   ensureLinhaVaziaNoFim();
 }
+
+/* cria linha ao fim quando a última não está vazia */
 function ensureLinhaVaziaNoFim(){
   const linhas = [...editor.querySelectorAll('.linha')];
   const ultima = linhas[linhas.length-1];
@@ -329,9 +367,19 @@ function ensureLinhaVaziaNoFim(){
   const blocoUlt = ultima.querySelector('.bloco');
   if(blocoUlt && blocoUlt.innerText.trim() !== '') criarLinhaBD();
 }
-function criarLinhaBD(conteudo='', tipo='texto'){
+
+/* criarLinhaBD agora aceita ordem desejada */
+function criarLinhaBD(conteudo='', tipo='texto', ordem=null){
   const id = novaChave();
-  const data = { tipo, conteudo, marcado:false, esgotado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
+
+  // se não foi passada a ordem, coloca depois da última existente
+  if(ordem === null){
+    const linhas = [...editor.querySelectorAll('.linha')];
+    const lastOrd = linhas.length ? parseFloat(linhas[linhas.length-1].dataset.ordem || "0") : 0;
+    ordem = lastOrd + 1;
+  }
+
+  const data = { tipo, conteudo, marcado:false, esgotado:false, fonte:'Arial', tamanho:'18px', ordem };
   set(ref(db, `salas/${sala}/blocos/${id}`), data);
   return id;
 }
@@ -348,7 +396,7 @@ editor.addEventListener('paste', (e)=>{
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
   const linhas = text.split(/\r?\n/).filter(l=>l.trim()!=='');
-  linhas.forEach(l=> criarLinhaBD(l, 'caixa'));
+  linhas.forEach(l=> criarLinhaBD(l, 'caixa')); // cola como checkbox, como no seu código
 });
 
 window.aplicarFonte = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte: fonteSel.value }); }
@@ -401,7 +449,7 @@ onValue(blocosRef, (snap)=>{
     <option value="Courier New">Courier</option>
     <option value="Times New Roman">Times</option>
   </select>
-  <select id="tamanho" onchange="aplicarTamanho()">
+  <select id="tamanho" onchange="aplicarTamanho">
     <option value="14px">14px</option>
     <option value="16px">16px</option>
     <option value="18px" selected>18px</option>
@@ -415,4 +463,3 @@ onValue(blocosRef, (snap)=>{
 <div id="editor" aria-label="Área de edição – toque para digitar"></div>
 </body>
 </html>
-``
