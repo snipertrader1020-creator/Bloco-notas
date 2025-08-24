@@ -93,6 +93,7 @@ header h1{
   line-height:1.35;
   padding:2px 2px;
   word-break:break-word;
+  white-space: pre-wrap; /* Mantém quebras de linha */
 }
 .linha.focused{ background:#fbfbfe; }
 .bloco:empty:before{
@@ -177,7 +178,6 @@ const tamSel   = document.getElementById('tamanho');
 let focoId = null;
 const novaChave = () => push(blocosRef).key;
 
-/* === Função Esgotado === */
 function ensureEsgotadoUI(linha, id, esgotadoEstado){
   let wrap = linha.querySelector('.esgotado-wrapper');
   if(!wrap){
@@ -244,15 +244,16 @@ function criarBlocoDOM(id, data){
     update(ref(db, `salas/${sala}/blocos/${id}`), { conteudo: bloco.innerText });
     ensureLinhaVaziaNoFim();
   });
-  /* === NOVO: Enter cria nova linha === */
+
+  /* === NOVO: Enter cria novo bloco logo abaixo do atual === */
   bloco.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){
       e.preventDefault();
-      const novaId = criarLinhaBD();
-      requestAnimationFrame(()=>{
-        const novaLinha = editor.querySelector(`.linha[data-id="${novaId}"] .bloco`);
-        if(novaLinha) novaLinha.focus();
-      });
+      const conteudoAntes = '';
+      const novoId = criarLinhaBD(conteudoAntes);
+      const novoBloco = criarBlocoDOM(novoId, {conteudo:'', tipo:'texto', marcado:false, esgotado:false, fonte:'Arial', tamanho:'18px'});
+      linha.after(novoBloco);
+      novoBloco.querySelector('.bloco').focus();
     }
     if(e.key === 'Backspace'){
       const sel = window.getSelection();
@@ -268,6 +269,7 @@ function criarBlocoDOM(id, data){
       }
     }
   });
+
   check.addEventListener('change', () => {
     const esgotadoCb = linha.querySelector('.esgotado-cb');
     const label = linha.querySelector('.esgotado-label');
@@ -277,6 +279,7 @@ function criarBlocoDOM(id, data){
       update(ref(db, `salas/${sala}/blocos/${id}`), { marcado:false, esgotado:false });
     } else { update(ref(db, `salas/${sala}/blocos/${id}`), { marcado:true }); }
   });
+
   linha.appendChild(check);
   linha.appendChild(bloco);
   if(linha.dataset.tipo !== 'texto'){ ensureEsgotadoUI(linha, id, data.esgotado); }
@@ -315,6 +318,7 @@ function criarLinhaBD(conteudo='', tipo='texto'){
   set(ref(db, `salas/${sala}/blocos/${id}`), data);
   return id;
 }
+
 editor.addEventListener('pointerdown', (e)=>{
   if(e.target.id === 'editor'){
     ensureLinhaVaziaNoFim();
@@ -322,6 +326,7 @@ editor.addEventListener('pointerdown', (e)=>{
     if(ultima) ultima.focus();
   }
 });
+
 editor.addEventListener('paste', (e)=>{
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
