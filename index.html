@@ -77,15 +77,12 @@ header h1{
   border-bottom:1px dashed #ececf0;
 }
 .linha:last-child{ border-bottom:none; }
-
-/* Checkbox principal (verde quadrado) */
 .linha input[type="checkbox"]{
   width:18px; height:18px; margin-top:6px; flex:0 0 auto;
   accent-color: var(--verde);
   border-radius: 4px;
 }
 .linha[data-tipo="texto"] input[type="checkbox"]{ display:none; }
-
 .bloco{
   flex:1 1 auto;
   min-height:24px;
@@ -103,20 +100,16 @@ header h1{
   color:#9aa0a6;
 }
 .apagar{ display:none; }
-
-/* >>> Estilos do "Esgotado" <<< */
 .esgotado-wrapper{
   display:inline-flex; align-items:center; gap:6px;
   margin-left:8px; margin-top:4px;
 }
-
-/* Segundo checkbox (Esgotado) — REDONDO e VERMELHO (sem borda grossa) */
 .esgotado-wrapper .esgotado-cb{
   appearance:none;
   -webkit-appearance:none;
   width:20px; height:20px; flex:0 0 auto;
   border-radius:50%;
-  border:1px solid var(--vermelho);   /* borda fina */
+  border:1px solid var(--vermelho);
   background:#fff;
   margin:0;
   cursor:pointer;
@@ -125,8 +118,6 @@ header h1{
   background: var(--vermelho);
   border-color: var(--vermelho);
 }
-
-/* Palavra "Esgotado" com reflexo animado */
 .esgotado-label{
   display:none;
   position:relative;
@@ -141,8 +132,6 @@ header h1{
   overflow:hidden;
   -webkit-text-stroke:0.4px black;
 }
-
-/* Reflexo animado */
 .esgotado-label::after{
   content:"";
   position:absolute;
@@ -152,18 +141,17 @@ header h1{
   transform:skewX(-20deg);
   animation: brilho 2s infinite;
 }
-
 @keyframes brilho {
   0%   { left:-50%; }
   100% { left:120%; }
 }
-
 @media (max-width:480px){
   header h1{ font-size:24px; }
   #toolbar select{ min-width:110px; }
   #toolbar button, #toolbar select{ font-size:14px; padding:6px 8px; }
 }
 </style>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, onChildAdded, onChildChanged, onChildRemoved, set, update, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -189,65 +177,45 @@ const tamSel   = document.getElementById('tamanho');
 let focoId = null;
 const novaChave = () => push(blocosRef).key;
 
-/* === util: cria/adiciona o UI do "Esgotado" e liga ao Firebase === */
+/* === Função Esgotado === */
 function ensureEsgotadoUI(linha, id, esgotadoEstado){
   let wrap = linha.querySelector('.esgotado-wrapper');
   if(!wrap){
     wrap = document.createElement('div');
     wrap.className = 'esgotado-wrapper';
-
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.className = 'esgotado-cb';
-
     const label = document.createElement('span');
     label.className = 'esgotado-label';
     label.textContent = 'Esgotado';
-
-    // Quando o checkbox "Esgotado" muda:
     cb.addEventListener('change', ()=>{
       const mainCheckbox = linha.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
       const checked = cb.checked;
-
-      if(mainCheckbox){
-        mainCheckbox.checked = !!checked;
-      }
-
+      if(mainCheckbox){ mainCheckbox.checked = !!checked; }
       update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: !!checked, esgotado: !!checked });
-
       cb.style.display = checked ? 'none' : '';
       label.style.display = checked ? 'inline-block' : 'none';
     });
-
-    // Clicar na palavra "Esgotado" desmarca ambos
     label.addEventListener('click', ()=>{
       const cbEl = wrap.querySelector('.esgotado-cb');
       const mainCheckbox = linha.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
       if(cbEl) cbEl.checked = false;
       if(mainCheckbox) mainCheckbox.checked = false;
-
       update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: false, esgotado: false });
-
       if(cbEl) cbEl.style.display = '';
       label.style.display = 'none';
     });
-
     wrap.appendChild(cb);
     wrap.appendChild(label);
     linha.appendChild(wrap);
   }
-
   const cb = wrap.querySelector('.esgotado-cb');
   const label = wrap.querySelector('.esgotado-label');
   cb.checked = !!esgotadoEstado;
   cb.style.display = cb.checked ? 'none' : '';
   label.style.display = cb.checked ? 'inline-block' : 'none';
-
-  if(linha.dataset.tipo === 'texto'){
-    wrap.style.display = 'none';
-  } else {
-    wrap.style.display = 'inline-flex';
-  }
+  wrap.style.display = (linha.dataset.tipo === 'texto') ? 'none' : 'inline-flex';
 }
 
 function criarBlocoDOM(id, data){
@@ -255,11 +223,9 @@ function criarBlocoDOM(id, data){
   linha.className = 'linha';
   linha.dataset.id = id;
   linha.dataset.tipo = data.tipo || 'texto';
-
   const check = document.createElement('input');
   check.type = 'checkbox';
   check.checked = !!data.marcado;
-
   const bloco = document.createElement('div');
   bloco.className = 'bloco';
   bloco.contentEditable = "true";
@@ -267,7 +233,6 @@ function criarBlocoDOM(id, data){
   bloco.innerText = (data.conteudo || "");
   bloco.style.fontFamily = data.fonte || 'Arial';
   bloco.style.fontSize   = data.tamanho || '18px';
-
   bloco.addEventListener('focus', () => {
     focoId = id;
     document.querySelectorAll('.linha').forEach(l=>l.classList.remove('focused'));
@@ -275,13 +240,20 @@ function criarBlocoDOM(id, data){
     fonteSel.value = (data.fonte || 'Arial');
     tamSel.value   = (data.tamanho || '18px');
   });
-
   bloco.addEventListener('input', () => {
     update(ref(db, `salas/${sala}/blocos/${id}`), { conteudo: bloco.innerText });
     ensureLinhaVaziaNoFim();
   });
-
+  /* === NOVO: Enter cria nova linha === */
   bloco.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const novaId = criarLinhaBD();
+      requestAnimationFrame(()=>{
+        const novaLinha = editor.querySelector(`.linha[data-id="${novaId}"] .bloco`);
+        if(novaLinha) novaLinha.focus();
+      });
+    }
     if(e.key === 'Backspace'){
       const sel = window.getSelection();
       if(sel.rangeCount > 0){
@@ -296,33 +268,18 @@ function criarBlocoDOM(id, data){
       }
     }
   });
-
-  // >>> CORRIGIDO: 1 clique no principal desmarca os dois imediatamente
   check.addEventListener('change', () => {
     const esgotadoCb = linha.querySelector('.esgotado-cb');
     const label = linha.querySelector('.esgotado-label');
-
     if(!check.checked){
-      if(esgotadoCb){
-        esgotadoCb.checked = false;     // visual
-        esgotadoCb.style.display = '';  // volta a mostrar o checkbox "Esgotado"
-      }
-      if(label) label.style.display = 'none'; // esconde a palavra
-
-      // Atualiza os dois campos de uma vez (evita precisar de 2 cliques)
+      if(esgotadoCb){ esgotadoCb.checked = false; esgotadoCb.style.display = ''; }
+      if(label) label.style.display = 'none';
       update(ref(db, `salas/${sala}/blocos/${id}`), { marcado:false, esgotado:false });
-    } else {
-      update(ref(db, `salas/${sala}/blocos/${id}`), { marcado:true });
-    }
+    } else { update(ref(db, `salas/${sala}/blocos/${id}`), { marcado:true }); }
   });
-
   linha.appendChild(check);
   linha.appendChild(bloco);
-
-  if(linha.dataset.tipo !== 'texto'){
-    ensureEsgotadoUI(linha, id, data.esgotado);
-  }
-
+  if(linha.dataset.tipo !== 'texto'){ ensureEsgotadoUI(linha, id, data.esgotado); }
   return linha;
 }
 
@@ -345,7 +302,6 @@ function renderRemove(id){
   if(node) node.remove();
   ensureLinhaVaziaNoFim();
 }
-
 function ensureLinhaVaziaNoFim(){
   const linhas = [...editor.querySelectorAll('.linha')];
   const ultima = linhas[linhas.length-1];
@@ -353,14 +309,12 @@ function ensureLinhaVaziaNoFim(){
   const blocoUlt = ultima.querySelector('.bloco');
   if(blocoUlt && blocoUlt.innerText.trim() !== '') criarLinhaBD();
 }
-
 function criarLinhaBD(conteudo='', tipo='texto'){
   const id = novaChave();
   const data = { tipo, conteudo, marcado:false, esgotado:false, fonte:'Arial', tamanho:'18px', ordem: Date.now() };
   set(ref(db, `salas/${sala}/blocos/${id}`), data);
   return id;
 }
-
 editor.addEventListener('pointerdown', (e)=>{
   if(e.target.id === 'editor'){
     ensureLinhaVaziaNoFim();
@@ -368,7 +322,6 @@ editor.addEventListener('pointerdown', (e)=>{
     if(ultima) ultima.focus();
   }
 });
-
 editor.addEventListener('paste', (e)=>{
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
