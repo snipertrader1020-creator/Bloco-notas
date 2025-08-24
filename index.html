@@ -153,10 +153,11 @@ header h1{
 </style>
 
 <script type="module">
+/* Firebase v10 modular */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, onChildAdded, onChildChanged, onChildRemoved, set, update, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-/* ------------ Firebase ------------ */
+/* ------------ Config Firebase ------------ */
 const firebaseConfig = {
   apiKey: "AIzaSyD1LRhrVBA5T2qfunpg8bTXlA5Z58-RL6M",
   authDomain: "lista-de-itens-em-falta.firebaseapp.com",
@@ -169,6 +170,8 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+
+/* ------------ Sala e refs ------------ */
 const sala = location.hash.replace("#","") || "default";
 const blocosRef = ref(db, `salas/${sala}/blocos`);
 
@@ -181,24 +184,51 @@ let focoId = null;
 const novaChave = () => push(blocosRef).key;
 let ultimaTeclaEnter = 0;
 
-/* ------------ Enviar via WhatsApp ------------ */
+/* ------------ Enviar via WhatsApp (agrupado por categoria) ------------ */
 window.enviarFaltas = function(){
   const linhas = [...editor.querySelectorAll('.linha')];
-  const itensEsgotados = linhas
-    .filter(l=>{
-      const cb = l.querySelector('.esgotado-cb');
-      return cb && cb.checked;
-    })
-    .map(l => l.querySelector('.bloco').innerText.trim())
-    .filter(Boolean);
 
-  if(itensEsgotados.length === 0){
+  // Mapa categoria -> itens
+  const grupos = new Map();
+  let categoriaAtual = null;
+
+  linhas.forEach(l => {
+    const tipo = l.dataset.tipo;
+    const texto = (l.querySelector('.bloco')?.innerText || '').trim();
+
+    if (tipo === 'texto') {
+      // considera linhas de texto como "categoria"
+      categoriaAtual = texto || null;
+      if (categoriaAtual && !grupos.has(categoriaAtual)) grupos.set(categoriaAtual, []);
+    } else {
+      // itens (caixa/checkbox) - pega apenas os que estão esgotados
+      const cb = l.querySelector('.esgotado-cb');
+      if (cb && cb.checked) {
+        const alvo = categoriaAtual || 'Outros';
+        if (!grupos.has(alvo)) grupos.set(alvo, []);
+        if (texto) grupos.get(alvo).push(texto);
+      }
+    }
+  });
+
+  // monta mensagem
+  let algumItem = false;
+  let mensagem = "Esgotado ⚠️\n\n";
+  grupos.forEach((itens, categoria) => {
+    if (itens.length) {
+      algumItem = true;
+      mensagem += `${categoria}\n`;
+      itens.forEach(i => mensagem += `- ${i}\n`);
+      mensagem += `\n`; // espaço entre categorias
+    }
+  });
+
+  if(!algumItem){
     alert("Nenhum item marcado como esgotado.");
     return;
   }
 
-  const mensagem = "Esgotado ⚠️\n\n" + itensEsgotados.join("\n");
-  const telefone = "5522981190317"; // ajuste para o número desejado
+  const telefone = "5522981190317"; // <- ajuste aqui se quiser
   const url = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
   window.open(url, "_blank");
 };
@@ -283,7 +313,7 @@ function criarBlocoDOM(id, data){
     ensureLinhaVaziaNoFim();
   });
 
-  // Enter híbrido: 1x quebra linha; 2x rápido cria novo bloco abaixo
+  // Enter: 1x quebra linha, 2x rápido cria novo bloco abaixo
   bloco.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){
       const agora = Date.now();
@@ -304,7 +334,7 @@ function criarBlocoDOM(id, data){
         }
         const novoTipo = curr.dataset.tipo || 'texto';
         const novoId = criarLinhaBD('', novoTipo, ordemNova);
-        focoId = novoId; // focado em renderAdd
+        focoId = novoId;
       }
       ultimaTeclaEnter = agora;
     }
@@ -419,7 +449,7 @@ editor.addEventListener('paste', (e)=>{
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
   const linhas = text.split(/\r?\n/).filter(l=>l.trim()!=='');
-  // cola como checkbox (caixa), como seu código
+  // cola como checkbox ("caixa"), como no seu código
   linhas.forEach(l=> criarLinhaBD(l, 'caixa'));
 });
 
@@ -454,7 +484,7 @@ onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
 onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
 onChildRemoved(blocosRef, (snap)=> renderRemove(snap.key));
 onValue(blocosRef, (snap)=>{
-  if(!snap.exists()) criarLinhaBD();
+  if(!snap.exists()) criarLinhaBD(); // garante pelo menos 1 linha
   requestAnimationFrame(()=>{
     editor.querySelectorAll('.linha').forEach(l=>{
       const tipo = l.dataset.tipo;
