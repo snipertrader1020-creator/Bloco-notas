@@ -100,7 +100,7 @@ header h1{
 }
 .apagar{ display:none; }
 
-/* >>> Estilos do "Esgotado" (fundo pincelado vermelho clarinho) <<< */
+/* >>> Estilos do "Esgotado" (fundo pincelado vermelho clarinho + contorno) <<< */
 .esgotado-wrapper{
   display:inline-flex; align-items:center; gap:6px;
   margin-left:8px; margin-top:4px; /* harmoniza com align-items:flex-start */
@@ -120,6 +120,7 @@ header h1{
   line-height:1;
   user-select:none;
   overflow:hidden;
+  -webkit-text-stroke:0.6px black; /* contorno preto fino */
 }
 .esgotado-label::before{
   content:"";
@@ -177,21 +178,52 @@ function ensureEsgotadoUI(linha, id, esgotadoEstado){
 
     const label = document.createElement('span');
     label.className = 'esgotado-label';
-    label.textContent = 'esgotado';
+    label.textContent = 'Esgotado';
 
+    // Quando o checkbox "Esgotado" muda:
     cb.addEventListener('change', ()=>{
-      update(ref(db, `salas/${sala}/blocos/${id}`), { esgotado: cb.checked });
-      label.style.display = cb.checked ? 'inline-block' : 'none';
+      const mainCheckbox = linha.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
+      const checked = cb.checked;
+
+      // Sincroniza o checkbox principal com o estado do esgotado (marca/desmarca)
+      if(mainCheckbox){
+        mainCheckbox.checked = !!checked;
+      }
+
+      // Salva ambos os estados no Firebase (garante não sobrescrever outros campos)
+      update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: !!checked, esgotado: !!checked });
+
+      // Visual: esconder o checkbox de esgotado quando estiver marcado, mostrar só a palavra
+      cb.style.display = checked ? 'none' : '';
+      label.style.display = checked ? 'inline-block' : 'none';
+    });
+
+    // Ao clicar na palavra "Esgotado" (quando visível), desmarca ambos
+    label.addEventListener('click', ()=>{
+      const cbEl = wrap.querySelector('.esgotado-cb');
+      const mainCheckbox = linha.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
+
+      // Desmarca visualmente e no DB
+      if(cbEl) cbEl.checked = false;
+      if(mainCheckbox) mainCheckbox.checked = false;
+
+      update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: false, esgotado: false });
+
+      // Volta a mostrar o checkbox de esgotado e esconder a palavra
+      if(cbEl) cbEl.style.display = '';
+      label.style.display = 'none';
     });
 
     wrap.appendChild(cb);
     wrap.appendChild(label);
     linha.appendChild(wrap);
   }
+
   // aplica estado atual
   const cb = wrap.querySelector('.esgotado-cb');
   const label = wrap.querySelector('.esgotado-label');
   cb.checked = !!esgotadoEstado;
+  cb.style.display = cb.checked ? 'none' : '';
   label.style.display = cb.checked ? 'inline-block' : 'none';
 
   // visibilidade conforme tipo
@@ -269,7 +301,7 @@ function renderChange(id, data){
   const node = editor.querySelector(`.linha[data-id="${id}"]`);
   if(!node) return renderAdd(id, data);
   node.dataset.tipo = data.tipo || 'texto';
-  const check = node.querySelector('input[type="checkbox"]'); // pega o 1º: o principal
+  const check = node.querySelector('input[type="checkbox"]:not(.esgotado-cb)'); // pega o 1º: o principal
   const bloco = node.querySelector('.bloco');
   check.style.display = (node.dataset.tipo === 'texto') ? 'none' : '';
   if(document.activeElement !== bloco) bloco.innerText = data.conteudo || '';
@@ -345,10 +377,9 @@ onValue(blocosRef, (snap)=>{
   requestAnimationFrame(()=>{
     editor.querySelectorAll('.linha').forEach(l=>{
       const tipo = l.dataset.tipo;
-      const chk = l.querySelector('input[type="checkbox"]'); // principal
+      const chk = l.querySelector('input[type="checkbox"]:not(.esgotado-cb)'); // principal
       if(!chk) return;
       chk.style.display = (tipo === 'texto') ? 'none' : '';
-      // mostra/oculta o UI do esgotado conforme o tipo
       const wrap = l.querySelector('.esgotado-wrapper');
       if(wrap) wrap.style.display = (tipo === 'texto') ? 'none' : 'inline-flex';
     });
