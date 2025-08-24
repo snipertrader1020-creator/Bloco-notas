@@ -93,7 +93,7 @@ header h1{
   line-height:1.35;
   padding:2px 2px;
   word-break:break-word;
-  white-space: pre-wrap; /* Mantém quebras de linha */
+  white-space: pre-wrap;
 }
 .linha.focused{ background:#fbfbfe; }
 .bloco:empty:before{
@@ -178,6 +178,9 @@ const tamSel   = document.getElementById('tamanho');
 let focoId = null;
 const novaChave = () => push(blocosRef).key;
 
+// controle do Enter duplo
+let ultimaTeclaEnter = 0;
+
 function ensureEsgotadoUI(linha, id, esgotadoEstado){
   let wrap = linha.querySelector('.esgotado-wrapper');
   if(!wrap){
@@ -223,6 +226,7 @@ function criarBlocoDOM(id, data){
   linha.className = 'linha';
   linha.dataset.id = id;
   linha.dataset.tipo = data.tipo || 'texto';
+  linha.dataset.ordem = data.ordem || 0;
   const check = document.createElement('input');
   check.type = 'checkbox';
   check.checked = !!data.marcado;
@@ -245,15 +249,16 @@ function criarBlocoDOM(id, data){
     ensureLinhaVaziaNoFim();
   });
 
-  /* === NOVO: Enter cria novo bloco logo abaixo do atual === */
+  /* === ENTER HÍBRIDO === */
   bloco.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){
-      e.preventDefault();
-      const conteudoAntes = '';
-      const novoId = criarLinhaBD(conteudoAntes);
-      const novoBloco = criarBlocoDOM(novoId, {conteudo:'', tipo:'texto', marcado:false, esgotado:false, fonte:'Arial', tamanho:'18px'});
-      linha.after(novoBloco);
-      novoBloco.querySelector('.bloco').focus();
+      const agora = Date.now();
+      if(agora - ultimaTeclaEnter < 400){ // 2 enters rápidos
+        e.preventDefault();
+        const novoId = criarLinhaBD('');
+        focoId = novoId;
+      }
+      ultimaTeclaEnter = agora;
     }
     if(e.key === 'Backspace'){
       const sel = window.getSelection();
@@ -286,11 +291,23 @@ function criarBlocoDOM(id, data){
   return linha;
 }
 
-function renderAdd(id, data){ editor.appendChild(criarBlocoDOM(id, data)); }
+/* Inserção respeitando a ordem */
+function renderAdd(id, data){ 
+  const linha = criarBlocoDOM(id, data);
+  const linhas = [...editor.querySelectorAll('.linha')];
+  const pos = linhas.findIndex(l => parseInt(l.dataset.ordem||"0",10) > (data.ordem||0));
+  if(pos === -1){
+    editor.appendChild(linha);
+  } else {
+    editor.insertBefore(linha, linhas[pos]);
+  }
+}
+
 function renderChange(id, data){
   const node = editor.querySelector(`.linha[data-id="${id}"]`);
   if(!node) return renderAdd(id, data);
   node.dataset.tipo = data.tipo || 'texto';
+  node.dataset.ordem = data.ordem || 0;
   const check = node.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
   const bloco = node.querySelector('.bloco');
   check.style.display = (node.dataset.tipo === 'texto') ? 'none' : '';
@@ -398,3 +415,4 @@ onValue(blocosRef, (snap)=>{
 <div id="editor" aria-label="Área de edição – toque para digitar"></div>
 </body>
 </html>
+``
