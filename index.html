@@ -12,6 +12,7 @@
   --cinza:#f6f7f9;
   --borda:#e6e7ea;
   --texto:#212529;
+  --vermelho:#e53935;
 }
 *{box-sizing:border-box}
 body{
@@ -25,14 +26,13 @@ header{
   background: linear-gradient(180deg, var(--roxo), var(--roxo-escuro));
   color:#fff;
   padding:12px 10px 8px;
-  text-align:left; /* alinhado à esquerda */
+  text-align:left;
 }
 header .brand{
-  display:flex; align-items:center; justify-content:flex-start; gap:8px; /* logo à esquerda, texto ao lado */
+  display:flex; align-items:center; justify-content:flex-start; gap:8px;
 }
 header img.logo{
   height:60px; width:auto; object-fit:contain;
-  /* removidos para ficar sem fundo branco */
   background:transparent;
   padding:0;
   border-radius:0;
@@ -100,27 +100,27 @@ header h1{
 }
 .apagar{ display:none; }
 
-/* >>> Estilos do "Esgotado" (fundo pincelado vermelho clarinho + contorno) <<< */
+/* >>> Estilos do "Esgotado" <<< */
 .esgotado-wrapper{
   display:inline-flex; align-items:center; gap:6px;
-  margin-left:8px; margin-top:4px; /* harmoniza com align-items:flex-start */
+  margin-left:8px; margin-top:4px;
 }
 .esgotado-wrapper input[type="checkbox"]{
-  width:18px; height:18px; flex:0 0 auto; accent-color: var(--verde);
+  width:18px; height:18px; flex:0 0 auto; accent-color: var(--vermelho);
 }
 .esgotado-label{
-  display:none; /* aparece só quando marcado */
+  display:none;
   position:relative;
   padding:2px 8px;
   border-radius:8px;
-  background:#ffcccc; /* vermelho clarinho */
-  color:#ffffff;
+  background:#ffcccc;
+  color:#000000; /* palavra em preto */
   font-size:13px;
   font-weight:700;
   line-height:1;
   user-select:none;
   overflow:hidden;
-  -webkit-text-stroke:0.6px black; /* contorno preto fino */
+  -webkit-text-stroke:0.4px black;
 }
 .esgotado-label::before{
   content:"";
@@ -185,31 +185,24 @@ function ensureEsgotadoUI(linha, id, esgotadoEstado){
       const mainCheckbox = linha.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
       const checked = cb.checked;
 
-      // Sincroniza o checkbox principal com o estado do esgotado (marca/desmarca)
       if(mainCheckbox){
         mainCheckbox.checked = !!checked;
       }
 
-      // Salva ambos os estados no Firebase (garante não sobrescrever outros campos)
       update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: !!checked, esgotado: !!checked });
 
-      // Visual: esconder o checkbox de esgotado quando estiver marcado, mostrar só a palavra
       cb.style.display = checked ? 'none' : '';
       label.style.display = checked ? 'inline-block' : 'none';
     });
 
-    // Ao clicar na palavra "Esgotado" (quando visível), desmarca ambos
     label.addEventListener('click', ()=>{
       const cbEl = wrap.querySelector('.esgotado-cb');
       const mainCheckbox = linha.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
-
-      // Desmarca visualmente e no DB
       if(cbEl) cbEl.checked = false;
       if(mainCheckbox) mainCheckbox.checked = false;
 
       update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: false, esgotado: false });
 
-      // Volta a mostrar o checkbox de esgotado e esconder a palavra
       if(cbEl) cbEl.style.display = '';
       label.style.display = 'none';
     });
@@ -219,14 +212,12 @@ function ensureEsgotadoUI(linha, id, esgotadoEstado){
     linha.appendChild(wrap);
   }
 
-  // aplica estado atual
   const cb = wrap.querySelector('.esgotado-cb');
   const label = wrap.querySelector('.esgotado-label');
   cb.checked = !!esgotadoEstado;
   cb.style.display = cb.checked ? 'none' : '';
   label.style.display = cb.checked ? 'inline-block' : 'none';
 
-  // visibilidade conforme tipo
   if(linha.dataset.tipo === 'texto'){
     wrap.style.display = 'none';
   } else {
@@ -282,13 +273,17 @@ function criarBlocoDOM(id, data){
   });
 
   check.addEventListener('change', () => {
+    const esgotadoCb = linha.querySelector('.esgotado-cb');
+    if(!check.checked && esgotadoCb){
+      esgotadoCb.checked = false;
+      update(ref(db, `salas/${sala}/blocos/${id}`), { esgotado: false });
+    }
     update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: check.checked });
   });
 
   linha.appendChild(check);
   linha.appendChild(bloco);
 
-  /* >>> acrescenta o UI do "esgotado" para linhas com checkbox <<< */
   if(linha.dataset.tipo !== 'texto'){
     ensureEsgotadoUI(linha, id, data.esgotado);
   }
@@ -301,15 +296,13 @@ function renderChange(id, data){
   const node = editor.querySelector(`.linha[data-id="${id}"]`);
   if(!node) return renderAdd(id, data);
   node.dataset.tipo = data.tipo || 'texto';
-  const check = node.querySelector('input[type="checkbox"]:not(.esgotado-cb)'); // pega o 1º: o principal
+  const check = node.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
   const bloco = node.querySelector('.bloco');
   check.style.display = (node.dataset.tipo === 'texto') ? 'none' : '';
   if(document.activeElement !== bloco) bloco.innerText = data.conteudo || '';
   bloco.style.fontFamily = data.fonte || 'Arial';
   bloco.style.fontSize   = data.tamanho || '18px';
   check.checked = !!data.marcado;
-
-  // garante e sincroniza o "esgotado"
   ensureEsgotadoUI(node, id, data.esgotado);
 }
 function renderRemove(id){
@@ -341,7 +334,6 @@ editor.addEventListener('pointerdown', (e)=>{
   }
 });
 
-// COLAGEM DE MÚLTIPLAS LINHAS COM CHECKBOX
 editor.addEventListener('paste', (e)=>{
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
@@ -349,7 +341,6 @@ editor.addEventListener('paste', (e)=>{
   linhas.forEach(l=> criarLinhaBD(l, 'caixa'));
 });
 
-// Toolbar
 window.aplicarFonte = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { fonte: fonteSel.value }); }
 window.aplicarTamanho = function(){ if(!focoId) return; update(ref(db, `salas/${sala}/blocos/${focoId}`), { tamanho: tamSel.value }); }
 window.toggleCheckbox = function(){
@@ -360,7 +351,6 @@ window.toggleCheckbox = function(){
   update(ref(db, `salas/${sala}/blocos/${focoId}`), { tipo: novoTipo });
 }
 
-// Botão mudar fundo
 let fundoAtual = 0;
 const coresFundo = ['#ffffff', '#f6f7f9', '#fffbf0', '#e0f7fa', '#fde0e0'];
 window.mudarFundo = function(){
@@ -368,7 +358,6 @@ window.mudarFundo = function(){
   document.getElementById('editor').style.background = coresFundo[fundoAtual];
 }
 
-// Firebase listeners
 onChildAdded(blocosRef, (snap)=> renderAdd(snap.key, snap.val()));
 onChildChanged(blocosRef, (snap)=> renderChange(snap.key, snap.val()));
 onChildRemoved(blocosRef, (snap)=> renderRemove(snap.key));
@@ -377,7 +366,7 @@ onValue(blocosRef, (snap)=>{
   requestAnimationFrame(()=>{
     editor.querySelectorAll('.linha').forEach(l=>{
       const tipo = l.dataset.tipo;
-      const chk = l.querySelector('input[type="checkbox"]:not(.esgotado-cb)'); // principal
+      const chk = l.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
       if(!chk) return;
       chk.style.display = (tipo === 'texto') ? 'none' : '';
       const wrap = l.querySelector('.esgotado-wrapper');
