@@ -195,6 +195,7 @@ function ensureEsgotadoUI(linha, id, esgotadoEstado){
       label.style.display = checked ? 'inline-block' : 'none';
     });
 
+    // Clicar na palavra "Esgotado" desmarca ambos
     label.addEventListener('click', ()=>{
       const cbEl = wrap.querySelector('.esgotado-cb');
       const mainCheckbox = linha.querySelector('input[type="checkbox"]:not(.esgotado-cb)');
@@ -272,13 +273,23 @@ function criarBlocoDOM(id, data){
     }
   });
 
+  // >>> CORRIGIDO: 1 clique no principal desmarca os dois imediatamente
   check.addEventListener('change', () => {
     const esgotadoCb = linha.querySelector('.esgotado-cb');
-    if(!check.checked && esgotadoCb){
-      esgotadoCb.checked = false;
-      update(ref(db, `salas/${sala}/blocos/${id}`), { esgotado: false });
+    const label = linha.querySelector('.esgotado-label');
+
+    if(!check.checked){
+      if(esgotadoCb){
+        esgotadoCb.checked = false;     // visual
+        esgotadoCb.style.display = '';  // volta a mostrar o checkbox "Esgotado"
+      }
+      if(label) label.style.display = 'none'; // esconde a palavra
+
+      // Atualiza os dois campos de uma vez (evita precisar de 2 cliques)
+      update(ref(db, `salas/${sala}/blocos/${id}`), { marcado:false, esgotado:false });
+    } else {
+      update(ref(db, `salas/${sala}/blocos/${id}`), { marcado:true });
     }
-    update(ref(db, `salas/${sala}/blocos/${id}`), { marcado: check.checked });
   });
 
   linha.appendChild(check);
